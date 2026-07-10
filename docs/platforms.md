@@ -1,0 +1,10 @@
+- [ ] TikTok — Trend Quality: Excellent; Engagement: Likes, comments, shares, saves, views; Difficulty: Very Hard
+- [X] YouTube — Trend Quality: Excellent; Engagement: Views, likes, comments; Difficulty: Medium
+- [ ] Hacker News — Trend Quality: Excellent (tech); Engagement: Points, comments; Difficulty: Easy
+- [ ] Product Hunt — Trend Quality: Excellent (products); Engagement: Upvotes, discussions; Difficulty: Easy
+- [ ] X (Twitter) — Trend Quality: Excellent; Engagement: Likes, reposts, replies; Difficulty: Hard
+- [X] Reddit — Trend Quality: Excellent (niche); Engagement: Upvotes, comments; Difficulty: Medium
+- [ ] Instagram — Trend Quality: Good; Engagement: Likes, comments; Difficulty: Hard
+- [ ] Pinterest — Trend Quality: Good; Engagement: Saves; Difficulty: Medium
+- [ ] Medium — Trend Quality: Good; Engagement: Claps, responses; Difficulty: Medium
+- [ ] Dev.to — Trend Quality: Good; Engagement: Reactions; Difficulty: Easy

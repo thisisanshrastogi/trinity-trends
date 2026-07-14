@@ -75,6 +75,24 @@ test("youtube collect hits the live site and respects the limit", async () => {
 
   assert.ok(videos[0].title.length > 0);
 
+  const withDescription = videos.filter(
+    (v) => v.description && v.description.length > 0,
+  );
+  assert.ok(
+    withDescription.length > 0,
+    "collect() should enrich videos with full descriptions",
+  );
+
+  // We expect at least some descriptions to be quite long (un-truncated)
+  // typical search snippets are ~150 chars, full descriptions are usually longer
+  const hasLongDescription = withDescription.some(
+    (v) => v.description!.length > 200,
+  );
+  assert.ok(
+    hasLongDescription,
+    "collect() should fetch full, un-truncated descriptions",
+  );
+
   const file = path.join(OUTPUT_DIR, "youtube-collect.json");
   await saveJson(file, videos);
 

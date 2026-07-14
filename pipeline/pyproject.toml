@@ -1,0 +1,19 @@
+[project]
+name = "trinity-pipeline"
+version = "0.1.0"
+description = "Analysis pipeline for Trinity Trends collected data"
+requires-python = ">=3.10"
+dependencies = [
+    "sentence-transformers>=3.0.0",
+    "hdbscan>=0.8.0",
+    "datasketch>=1.6.0",
+    "pydantic>=2.0.0",
+    "langdetect>=1.0.0",
+    "google-genai>=1.0.0",
+    "numpy>=1.24.0",
+    "lancedb>=0.17.0",
+    "pyarrow>=14.0.0",
+]
+
+[project.scripts]
+pipeline = "run:main"

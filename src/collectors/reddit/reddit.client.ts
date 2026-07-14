@@ -36,10 +36,67 @@ export class RedditClient implements ClientLike<RedditSearchRequest> {
       params["count"] = String(req.cursorCount);
     }
 
-    const res = await this.httpClient.get(`${RedditClient.BASE}/search`, {
-      params,
-    });
+    const res = await this.fetchWithBackoff(`${RedditClient.BASE}/search`, params);
 
     return res.data;
+  }
+  async extractGroupChat(url: string): Promise<{ posts: any[]; comments: any[] }> {
+    let subreddit = url;
+    if (url.includes("/r/")) {
+      const match = url.match(/\/r\/([^/]+)/);
+      if (match) subreddit = match[1];
+    }
+
+    const posts: any[] = [];
+    const comments: any[] = [];
+
+    let postsAfter: string | undefined = undefined;
+    do {
+      const res = await this.fetchWithBackoff(`${RedditClient.BASE}/r/${subreddit}/.json`, 
+        postsAfter ? { after: postsAfter, limit: 100 } : { limit: 100 }
+      );
+      const children = res.data?.data?.children || [];
+      if (children.length === 0) break;
+      
+      posts.push(...children.map((c: any) => c.data));
+      postsAfter = res.data?.data?.after;
+      
+      if (postsAfter) await new Promise((r) => setTimeout(r, 1000));
+    } while (postsAfter);
+
+    let commentsAfter: string | undefined = undefined;
+    do {
+      const res = await this.fetchWithBackoff(`${RedditClient.BASE}/r/${subreddit}/comments/.json`, 
+        commentsAfter ? { after: commentsAfter, limit: 100 } : { limit: 100 }
+      );
+      const children = res.data?.data?.children || [];
+      if (children.length === 0) break;
+
+      comments.push(...children.map((c: any) => c.data));
+      commentsAfter = res.data?.data?.after;
+
+      if (commentsAfter) await new Promise((r) => setTimeout(r, 1000));
+    } while (commentsAfter);
+
+    return { posts, comments };
+  }
+
+  private async fetchWithBackoff(url: string, params?: Record<string, any>, maxRetries = 5): Promise<any> {
+    let delay = 2000;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.httpClient.get(url, { params });
+      } catch (error: any) {
+        const status = error.response?.status;
+        if (status === 429 || status === 403 || status >= 500) {
+          if (attempt === maxRetries) throw error;
+          console.warn(`[RedditClient] API rate limited/error (Status: ${status}). Retrying in ${delay}ms...`);
+          await new Promise((r) => setTimeout(r, delay));
+          delay *= 2;
+        } else {
+          throw error;
+        }
+      }
+    }
   }
 }

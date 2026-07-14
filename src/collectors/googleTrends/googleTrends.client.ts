@@ -1,19 +1,24 @@
-//@ts-expect-error - google-trends-api has no type definitions
+import axios, { AxiosInstance } from "axios";
+//@ts-expect-error
 import googleTrends from "google-trends-api";
 import { ClientLike } from "../core/core.interfaces.js";
 import {
   GoogleTrendsSearchRequest,
-  GoogleTrendsRawResult,
   GoogleTrendsMethod,
-  GoogleTrendsMethodsOptions,
 } from "./googleTrends.types.js";
 
 type MethodFn = (options: Record<string, unknown>) => Promise<string>;
 
 export class GoogleTrendsClient implements ClientLike<GoogleTrendsSearchRequest> {
+  // The interface requires an AxiosInstance. The package does its own
+  // HTTP internally, so this is present only to satisfy the contract.
+  readonly httpClient: AxiosInstance;
+
   private readonly methods: Record<GoogleTrendsMethod, MethodFn>;
 
   constructor() {
+    this.httpClient = axios.create();
+
     this.methods = {
       autoComplete: googleTrends.autoComplete.bind(googleTrends),
       dailyTrends: googleTrends.dailyTrends.bind(googleTrends),
@@ -24,36 +29,36 @@ export class GoogleTrendsClient implements ClientLike<GoogleTrendsSearchRequest>
     };
   }
 
+  // Single method → single raw JSON string, exactly as the interface requires.
   async search(req: GoogleTrendsSearchRequest): Promise<string> {
-    const out: GoogleTrendsRawResult[] = [];
-
-    for (const method of req.methods) {
-      const options = this.buildOptions(method, req);
-      const raw = await this.methods[method](options);
-      out.push({ method, raw });
-    }
-
-    return JSON.stringify(out);
+    const options = this.buildOptions(req);
+    return this.methods[req.method](options);
   }
 
   private buildOptions(
-    method: GoogleTrendsMethod,
     req: GoogleTrendsSearchRequest,
   ): Record<string, unknown> {
-    const provided =
-      (req.options?.[method] as GoogleTrendsMethodsOptions[typeof method]) ??
-      {};
+    const options: Record<string, unknown> = {};
 
-    const options: Record<string, unknown> = { ...provided };
-
-    // fall back to the top-level query when a keyword isn't explicitly set
-    if (req.query != null) {
-      if (method === "autoComplete") {
-        options["keyword"] ??= req.query;
-      } else if (method !== "dailyTrends") {
-        options["keyword"] ??= [req.query];
-      }
+    if (req.method === "autoComplete") {
+      options["keyword"] = req.keyword[0];
+    } else if (req.method === "dailyTrends") {
+      if (req.geo != null) options["geo"] = req.geo;
+      if (req.trendDate != null) options["trendDate"] = req.trendDate;
+    } else {
+      options["keyword"] =
+        req.keyword.length === 1 ? req.keyword[0] : req.keyword;
     }
+
+    if (req.geo != null && req.method !== "dailyTrends") {
+      options["geo"] = req.geo;
+    }
+    if (req.hl != null) options["hl"] = req.hl;
+    if (req.timezone != null) options["timezone"] = req.timezone;
+    if (req.category != null) options["category"] = req.category;
+    if (req.startTime != null) options["startTime"] = req.startTime;
+    if (req.endTime != null) options["endTime"] = req.endTime;
+    if (req.resolution != null) options["resolution"] = req.resolution;
 
     return options;
   }

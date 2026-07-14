@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { buildApp } from "./server.js";
 import { loadConfig } from "./config.js";
 

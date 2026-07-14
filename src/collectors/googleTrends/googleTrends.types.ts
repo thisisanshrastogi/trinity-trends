@@ -8,72 +8,39 @@ export type GoogleTrendsMethod =
 
 export type GoogleTrendsResolution = "COUNTRY" | "REGION" | "CITY" | "DMA";
 
-export interface GoogleTrendsMethodsOptions {
-  autoComplete?: {
-    keyword: string;
-    hl?: string;
-  };
-  dailyTrends?: {
-    geo: string;
-    hl?: string;
-    timezone?: number;
-    // should be less than 15 minutes old
-    trendDate?: Date;
-  };
-  interestOverTime?: {
-    keyword: string[];
-    // default is 2004-01-01
-    startTime?: Date;
-    // default is Date.now()
-    endTime?: Date;
-    geo?: string;
-    hl?: string;
-    timezone?: number;
-    category?: number;
-  };
-  interestByRegion?: {
-    keyword: string[];
-    geo?: string;
-    startTime?: Date;
-    endTime?: Date;
-    resolution?: GoogleTrendsResolution;
-    hl?: string;
-    timezone?: number;
-    category?: number;
-  };
-  relatedQueries?: {
-    keyword: string[];
-    geo?: string;
-    startTime?: Date;
-    endTime?: Date;
-    hl?: string;
-    timezone?: number;
-    category?: number;
-  };
-  relatedTopics?: {
-    keyword: string[];
-    geo?: string;
-    startTime?: Date;
-    endTime?: Date;
-    hl?: string;
-    timezone?: number;
-    category?: number;
-  };
-}
+// ---- Requests ----
 
+// Single-method request — consumed by the client's search().
 export interface GoogleTrendsSearchRequest {
-  query?: string;
-  methods: GoogleTrendsMethod[];
-  options?: GoogleTrendsMethodsOptions;
+  method: GoogleTrendsMethod;
+  keyword: string[];
+  geo?: string;
+  hl?: string;
+  timezone?: number;
+  category?: number;
+  startTime?: Date;
+  endTime?: Date;
+  resolution?: GoogleTrendsResolution;
+  trendDate?: Date; // dailyTrends only
 }
 
-// ---- Raw method output (the package returns JSON strings) ----
-export interface GoogleTrendsRawResult {
-  method: GoogleTrendsMethod;
-  raw: string;
+// Multi-method request — consumed by the collector.
+export interface GoogleTrendsCollectRequest {
+  query?: string;
+  keyword?: string[];
+  methods: GoogleTrendsMethod[];
+  geo?: string;
+  hl?: string;
+  timezone?: number;
+  category?: number;
+  startTime?: Date;
+  endTime?: Date;
+  resolution?: GoogleTrendsResolution;
+  trendDate?: Date;
 }
 
 // ---- Parsed shapes ----
+
 export interface AutoCompleteItem {
   mid: string;
   title: string;
@@ -101,9 +68,15 @@ export interface RegionValue {
   formattedValue: string[];
 }
 
+export interface RankedTopic {
+  mid: string;
+  title: string;
+  type: string;
+}
+
 export interface RankedKeyword {
   query?: string;
-  topic?: { mid: string; title: string; type: string };
+  topic?: RankedTopic;
   value: number;
   formattedValue: string;
   link?: string;
@@ -115,19 +88,23 @@ export interface RankedListResult {
   rising: RankedKeyword[];
 }
 
+export interface DailyTrendArticle {
+  title: string;
+  url: string;
+  source?: string;
+  snippet?: string;
+}
+
 export interface DailyTrendItem {
   title: string;
   formattedTraffic: string;
   traffic: number;
   relatedQueries: string[];
-  articles: {
-    title: string;
-    url: string;
-    source?: string;
-    snippet?: string;
-  }[];
+  articles: DailyTrendArticle[];
   shareUrl?: string;
 }
+
+// ---- Per-method result (discriminated by `method`) ----
 
 export interface GoogleTrendsMethodResult {
   method: GoogleTrendsMethod;
@@ -138,9 +115,4 @@ export interface GoogleTrendsMethodResult {
   relatedQueries?: RankedListResult;
   relatedTopics?: RankedListResult;
   error?: string;
-}
-
-export interface GoogleTrendsPage {
-  query?: string;
-  results: GoogleTrendsMethodResult[];
 }

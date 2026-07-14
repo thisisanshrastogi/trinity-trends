@@ -174,3 +174,9 @@ Exit criteria:
 ## Notes
 
 This roadmap is intentionally layer-first. The orchestration layer comes later because it should coordinate stable stages, not define them.
+
+
+
+---
+## Todo
+1. The topics that we extract from LLM should be passed through autocomplete filter 

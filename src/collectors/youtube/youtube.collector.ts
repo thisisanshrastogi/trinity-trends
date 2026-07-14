@@ -20,6 +20,12 @@ export interface YouTubeClientLike {
   ): Promise<unknown>;
   /** Config scraped from the most recent search(), if any. */
   getConfig(): InnertubeConfig | null;
+  /** Optional: get full video details using the Innertube player endpoint. */
+  innertubePlayer?(
+    videoId: string,
+    cfg: InnertubeConfig,
+    region?: string,
+  ): Promise<unknown>;
 }
 
 export interface YouTubeParserLike {
@@ -56,12 +62,41 @@ export class YouTubeCollector {
         ? await this.continue(continuation, req.region)
         : await this.search(req);
 
+      const newVideos: YouTubeVideo[] = [];
       for (const video of page.videos) {
-        if (videos.length >= limit) break;
+        if (videos.length + newVideos.length >= limit) break;
         if (seen.has(video.id)) continue;
         seen.add(video.id);
-        videos.push({ ...video, rank: videos.length + 1 });
+        newVideos.push({ ...video, rank: videos.length + newVideos.length + 1 });
       }
+
+      const cfg = this.client.getConfig();
+      if (this.client.innertubePlayer && cfg) {
+        for (let i = 0; i < newVideos.length; i += 5) {
+          const chunk = newVideos.slice(i, i + 5);
+          await Promise.all(
+            chunk.map(async (v) => {
+              try {
+                const data: any = await this.client.innertubePlayer!(
+                  v.id,
+                  cfg,
+                  req.region,
+                );
+                if (data?.videoDetails?.title) {
+                  v.title = data.videoDetails.title;
+                }
+                if (data?.videoDetails?.shortDescription) {
+                  v.description = data.videoDetails.shortDescription;
+                }
+              } catch {
+                // Ignore errors and keep search page metadata
+              }
+            }),
+          );
+        }
+      }
+
+      videos.push(...newVideos);
 
       if (
         !page.hasMore ||

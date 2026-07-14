@@ -82,4 +82,30 @@ export class YouTubeClient implements ClientLike<YouTubeSearchRequest> {
     );
     return data;
   }
+
+  async innertubePlayer(
+    videoId: string,
+    cfg: InnertubeConfig,
+    region?: string,
+  ): Promise<unknown> {
+    const body = {
+      context: {
+        client: {
+          clientName: cfg.clientName,
+          clientVersion: cfg.clientVersion,
+          hl: "en",
+          gl: region ?? "US",
+          visitorData: cfg.visitorData,
+        },
+      },
+      videoId,
+    };
+
+    const { data } = await this.httpClient.post(
+      `/youtubei/v1/player?key=${cfg.apiKey}&prettyPrint=false`,
+      body,
+      { headers: { "Content-Type": "application/json" } },
+    );
+    return data;
+  }
 }

@@ -23,6 +23,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or _env.get("GEMINI_API_KEY", 
 MIN_WORD_COUNT = 15          # Drop items with fewer than this many words
 TARGET_LANGUAGE = "en"       # ISO-639-1 code
 LANGUAGE_CONFIDENCE = 0.8    # Minimum confidence for lang detection
+YOUTUBE_MIN_VIEWS = 2000     # Drop YouTube videos with fewer than this many views
 
 # Base weight multipliers for engagement metrics across platforms
 PLATFORM_WEIGHTS = {
@@ -52,7 +53,7 @@ HDBSCAN_METRIC = "euclidean"
 CLUSTER_EPSILON = 0.06
 
 # ── Stage 5: Extract & Stage 9: Synthesize ─────────────────────────────────
-GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_MODEL = "gemini-3.5-flash"
 MAX_DOCS_PER_CLUSTER = 10    # Top N docs (by engagement) sent to LLM per cluster
 
 # ── Stage 6: Merge ──────────────────────────────────────────────────────────

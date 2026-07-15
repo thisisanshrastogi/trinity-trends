@@ -11,6 +11,7 @@ import { SqliteRepository } from '../storage/sqlite/sqlite.repository.js';
 import { User, Session } from '../storage/storage.types.js';
 import { UpgradeManager } from '../upgrade/upgrade.manager.js';
 import { getCurrentVersion } from '../upgrade/version.js';
+import { ConfigManager } from './config.manager.js';
 
 const banner = `
 ████████╗██████╗ ██╗███╗   ██╗██╗████████╗██╗   ██╗
@@ -443,6 +444,8 @@ async function manageSession(session: Session) {
 
       const s = p.spinner();
       s.start('Resuming pipeline...');
+      const configManager = new ConfigManager();
+      const config = configManager.load();
       try {
         await orchestrator.runPipeline(session.userId, 'Unknown', session.query, {
           sessionId: session.id,
@@ -450,19 +453,19 @@ async function manageSession(session: Session) {
           endStage: endStageInput as any,
           pythonStartStage: pythonStart,
           pythonEndStage: pythonEnd,
-          topK: 10,
-          reddit: { limit: 10, sort: 'relevance', time: 'month' },
+          topK: config.topK,
+          reddit: { limit: config.redditLimit, sort: config.redditSort as any, time: config.redditTime as any },
           youtube: {
-            limit: 10,
+            limit: config.youtubeLimit,
             region: 'US',
             filters: [
-              { category: 'uploadDate', label: 'This year' },
-              { category: 'type', label: 'Video' }
+              ...(config.youtubeUploadDate !== 'Any time' ? [{ category: 'uploadDate' as const, label: config.youtubeUploadDate as any }] : []),
+              ...(config.youtubeType !== 'Any' ? [{ category: 'type' as const, label: config.youtubeType as any }] : [])
             ]
           },
           hackerNews: {
-            limit: 10,
-            minPoints: 2,
+            limit: config.hackerNewsLimit,
+            minPoints: config.hackerNewsMinPoints,
             after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           },
           onLog: (msg) => s.message(msg),
@@ -638,6 +641,7 @@ async function main() {
       options: [
         { value: 'new', label: 'Run New Search Pipeline' },
         { value: 'past', label: 'View Past Sessions' },
+        { value: 'settings', label: 'Settings / Configuration' },
         { value: 'upgrade', label: 'Check for Updates' },
         { value: 'exit', label: 'Exit' },
       ],
@@ -693,25 +697,27 @@ async function main() {
 
       const s = p.spinner();
       s.start('Running pipeline...');
+      const configManager = new ConfigManager();
+      const config = configManager.load();
       try {
         const sessionId = await orchestrator.runPipeline(user.email!, user.name, (query as string).trim(), {
           startStage: startStageInput as any,
           endStage: endStageInput as any,
           pythonStartStage: pythonStart,
           pythonEndStage: pythonEnd,
-          topK: 10,
-          reddit: { limit: 10, sort: 'relevance', time: 'month' },
+          topK: config.topK,
+          reddit: { limit: config.redditLimit, sort: config.redditSort as any, time: config.redditTime as any },
           youtube: {
-            limit: 10,
+            limit: config.youtubeLimit,
             region: 'US',
             filters: [
-              { category: 'uploadDate', label: 'This year' },
-              { category: 'type', label: 'Video' }
+              ...(config.youtubeUploadDate !== 'Any time' ? [{ category: 'uploadDate' as const, label: config.youtubeUploadDate as any }] : []),
+              ...(config.youtubeType !== 'Any' ? [{ category: 'type' as const, label: config.youtubeType as any }] : [])
             ]
           },
           hackerNews: {
-            limit: 10,
-            minPoints: 2,
+            limit: config.hackerNewsLimit,
+            minPoints: config.hackerNewsMinPoints,
             after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           },
           onLog: (msg) => s.message(msg),
@@ -730,6 +736,118 @@ async function main() {
       await viewSessionsMenu(user);
     } else if (choice === 'upgrade') {
       await upgradeMenu();
+    } else if (choice === 'settings') {
+      const configManager = new ConfigManager();
+      let config = configManager.load();
+      let dirty = false;
+
+      while (true) {
+        console.clear();
+        p.intro(pc.bgMagenta(pc.black(' SETTINGS & CONFIGURATION ')));
+
+        const settingChoice = await p.select({
+          message: dirty ? pc.yellow('Settings have unsaved changes!') : 'Select a setting to edit:',
+          options: [
+            { value: 'topK', label: `Global: Top Expanded Topics (Current: ${config.topK})` },
+            { value: 'maxDocs', label: `Python: Max Docs per Cluster (Current: ${config.maxDocsPerCluster})` },
+            { value: 'redditLimit', label: `Reddit: Fetch Limit (Current: ${config.redditLimit})` },
+            { value: 'redditSort', label: `Reddit: Sort By (Current: ${config.redditSort})` },
+            { value: 'redditTime', label: `Reddit: Time Filter (Current: ${config.redditTime})` },
+            { value: 'ytLimit', label: `YouTube: Fetch Limit (Current: ${config.youtubeLimit})` },
+            { value: 'ytUploadDate', label: `YouTube: Upload Date (Current: ${config.youtubeUploadDate})` },
+            { value: 'ytType', label: `YouTube: Type Filter (Current: ${config.youtubeType})` },
+            { value: 'hnLimit', label: `HackerNews: Fetch Limit (Current: ${config.hackerNewsLimit})` },
+            { value: 'hnMinPoints', label: `HackerNews: Min Points (Current: ${config.hackerNewsMinPoints})` },
+            { value: 'save', label: pc.green('Save Changes & Exit') },
+            { value: 'reset', label: pc.cyan('Reset to Defaults') },
+            { value: 'cancel', label: pc.red('Cancel Without Saving') }
+          ],
+        });
+
+        if (p.isCancel(settingChoice) || settingChoice === 'cancel') break;
+
+        if (settingChoice === 'save') {
+          configManager.save(config);
+          await configManager.updatePythonConfig(config.maxDocsPerCluster);
+          p.log.success('Configuration saved successfully!');
+          await pause();
+          break;
+        }
+
+        if (settingChoice === 'reset') {
+          const confirm = await p.confirm({ message: 'Are you sure you want to reset all settings to their defaults?' });
+          if (!p.isCancel(confirm) && confirm) {
+            const { DEFAULT_CONFIG } = await import('./config.manager.js');
+            config = { ...DEFAULT_CONFIG };
+            dirty = true;
+            p.log.info('Settings reset to defaults (Not saved yet).');
+            await pause();
+          }
+          continue;
+        }
+
+        if (settingChoice === 'topK') {
+          const val = await p.text({ message: 'Enter new value:', initialValue: config.topK.toString() });
+          if (!p.isCancel(val)) { config.topK = parseInt(val as string, 10) || 10; dirty = true; }
+        } else if (settingChoice === 'maxDocs') {
+          const val = await p.text({ message: 'Enter new value:', initialValue: config.maxDocsPerCluster.toString() });
+          if (!p.isCancel(val)) { config.maxDocsPerCluster = parseInt(val as string, 10) || 10; dirty = true; }
+        } else if (settingChoice === 'redditLimit') {
+          const val = await p.text({ message: 'Enter new value:', initialValue: config.redditLimit.toString() });
+          if (!p.isCancel(val)) { config.redditLimit = parseInt(val as string, 10) || 10; dirty = true; }
+        } else if (settingChoice === 'hnLimit') {
+          const val = await p.text({ message: 'Enter new value:', initialValue: config.hackerNewsLimit.toString() });
+          if (!p.isCancel(val)) { config.hackerNewsLimit = parseInt(val as string, 10) || 10; dirty = true; }
+        } else if (settingChoice === 'hnMinPoints') {
+          const val = await p.text({ message: 'Enter new value:', initialValue: config.hackerNewsMinPoints.toString() });
+          if (!p.isCancel(val)) { config.hackerNewsMinPoints = parseInt(val as string, 10) || 2; dirty = true; }
+        } else if (settingChoice === 'ytLimit') {
+          const val = await p.text({ message: 'Enter new value:', initialValue: config.youtubeLimit.toString() });
+          if (!p.isCancel(val)) { config.youtubeLimit = parseInt(val as string, 10) || 10; dirty = true; }
+        } else if (settingChoice === 'redditSort') {
+          const val = await p.select({
+            message: 'Select Reddit sort:',
+            options: [
+              { value: 'relevance', label: 'Relevance' }, { value: 'hot', label: 'Hot' },
+              { value: 'top', label: 'Top' }, { value: 'new', label: 'New' }, { value: 'comments', label: 'Comments' }
+            ],
+            initialValue: config.redditSort
+          });
+          if (!p.isCancel(val)) { config.redditSort = val as string; dirty = true; }
+        } else if (settingChoice === 'redditTime') {
+          const val = await p.select({
+            message: 'Select Reddit time filter:',
+            options: [
+              { value: 'hour', label: 'Past Hour' }, { value: 'day', label: 'Past 24 Hours' },
+              { value: 'week', label: 'Past Week' }, { value: 'month', label: 'Past Month' },
+              { value: 'year', label: 'Past Year' }, { value: 'all', label: 'All Time' }
+            ],
+            initialValue: config.redditTime
+          });
+          if (!p.isCancel(val)) { config.redditTime = val as string; dirty = true; }
+        } else if (settingChoice === 'ytUploadDate') {
+          const val = await p.select({
+            message: 'Select YouTube upload date:',
+            options: [
+              { value: 'Any time', label: 'Any time' }, { value: 'Today', label: 'Today' },
+              { value: 'This week', label: 'This week' }, { value: 'This month', label: 'This month' },
+              { value: 'This year', label: 'This year' }
+            ],
+            initialValue: config.youtubeUploadDate
+          });
+          if (!p.isCancel(val)) { config.youtubeUploadDate = val as string; dirty = true; }
+        } else if (settingChoice === 'ytType') {
+          const val = await p.select({
+            message: 'Select YouTube type:',
+            options: [
+              { value: 'Any', label: 'Any' }, { value: 'Video', label: 'Video' }, { value: 'Channel', label: 'Channel' },
+              { value: 'Playlist', label: 'Playlist' }, { value: 'Movie', label: 'Movie' }
+            ],
+            initialValue: config.youtubeType
+          });
+          if (!p.isCancel(val)) { config.youtubeType = val as string; dirty = true; }
+        }
+      }
     }
   }
 }

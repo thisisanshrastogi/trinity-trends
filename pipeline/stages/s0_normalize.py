@@ -261,6 +261,9 @@ def _normalize_youtube(video: YouTubeVideo, query: str) -> NormalizedItem | None
         return None
 
     views = _parse_views(video.viewsText)
+    if views < config.YOUTUBE_MIN_VIEWS:
+        return None
+
     created_at = _parse_datetime(video.publishedText)
     
     # Assuming comments aren't currently provided by the YT collector model

@@ -34,23 +34,39 @@ export class GoogleEmbeddingClient implements EmbeddingClientLike {
       const batch = texts.slice(i, i + this.batchSize);
 
       try {
-        // The response.embeddings should map 1-to-1 with the batch array
-        const embeddingsPromises = batch.map(text =>
-          this.ai.models.embedContent({
-            model: this.model,
-            contents: text,
-            config: {
-              taskType: taskType,
+        // We limit concurrency to prevent ECONNRESET on Windows, but run full batch on Linux/Mac
+        const concurrencyLimit = process.platform === 'win32' ? 5 : this.batchSize;
+        for (let j = 0; j < batch.length; j += concurrencyLimit) {
+          const subBatch = batch.slice(j, j + concurrencyLimit);
+          
+          const embeddingsPromises = subBatch.map(async text => {
+            // Add retry logic with exponential backoff
+            const maxRetries = 3;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+              try {
+                const response = await this.ai.models.embedContent({
+                  model: this.model,
+                  contents: text,
+                  config: { taskType: taskType }
+                });
+                return response;
+              } catch (err: any) {
+                if (attempt === maxRetries - 1) throw err;
+                const delay = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 1000, 10000);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
             }
-          })
-        );
-        const responses = await Promise.all(embeddingsPromises);
+            throw new Error('Unreachable');
+          });
 
-        for (const response of responses) {
-          if (response.embeddings && response.embeddings.length > 0) {
-            allEmbeddings.push(response.embeddings[0].values || []);
-          } else {
-            allEmbeddings.push([]);
+          const responses = await Promise.all(embeddingsPromises);
+
+          for (const response of responses) {
+            if (response && response.embeddings && response.embeddings.length > 0) {
+              allEmbeddings.push(response.embeddings[0].values || []);
+            } else {
+              allEmbeddings.push([]);
+            }
           }
         }
       } catch (error) {

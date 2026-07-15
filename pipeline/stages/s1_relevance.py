@@ -139,7 +139,15 @@ async def _embed_single(client: genai.Client, text: str, task_type: str) -> list
 
 async def _embed_batch(client: genai.Client, texts: list[str], task_type: str) -> np.ndarray:
     """Sends a batch of individual requests concurrently."""
-    tasks = [_embed_single(client, text, task_type) for text in texts]
+    import sys
+    concurrency_limit = 5 if sys.platform == 'win32' else len(texts)
+    sem = asyncio.Semaphore(concurrency_limit)
+    
+    async def _sem_embed(text):
+        async with sem:
+            return await _embed_single(client, text, task_type)
+            
+    tasks = [_sem_embed(text) for text in texts]
     results = await asyncio.gather(*tasks)
     return np.array(results)
 

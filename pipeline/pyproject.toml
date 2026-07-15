@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Analysis pipeline for Trinity Trends collected data"
 requires-python = ">=3.10"
 dependencies = [
-    "sentence-transformers>=3.0.0",
     "hdbscan>=0.8.0",
     "datasketch>=1.6.0",
     "pydantic>=2.0.0",

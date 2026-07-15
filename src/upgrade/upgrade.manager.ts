@@ -391,19 +391,31 @@ export class UpgradeManager {
       // Reinstall Python deps if pipeline exists
       const pipelineDir = path.join(this.projectRoot, 'pipeline');
       const venvDir = path.join(pipelineDir, '.venv');
-      if (fs.existsSync(venvDir)) {
+      
+      if (fs.existsSync(pipelineDir)) {
+        if (!fs.existsSync(venvDir)) {
+          console.log('[INFO] Creating Python virtual environment...');
+          execSync('python3 -m venv .venv', {
+            cwd: pipelineDir,
+            stdio: 'pipe',
+            timeout: 60000,
+          });
+        }
+
         const isWin = process.platform === 'win32';
         const pipCmd = isWin
           ? path.join(venvDir, 'Scripts', 'pip')
           : path.join(venvDir, 'bin', 'pip');
 
         if (fs.existsSync(path.join(pipelineDir, 'pyproject.toml'))) {
+          console.log('[INFO] Installing Python dependencies from pyproject.toml...');
           execSync(`"${pipCmd}" install -e .`, {
             cwd: pipelineDir,
             stdio: 'pipe',
             timeout: 120000,
           });
         } else if (fs.existsSync(path.join(pipelineDir, 'requirements.txt'))) {
+          console.log('[INFO] Installing Python dependencies from requirements.txt...');
           execSync(`"${pipCmd}" install -r requirements.txt`, {
             cwd: pipelineDir,
             stdio: 'pipe',

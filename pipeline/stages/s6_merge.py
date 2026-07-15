@@ -14,7 +14,6 @@ import hashlib
 from typing import Sequence
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from pipeline.models import ExtractedSignal, MergedSignal
 from pipeline import config
@@ -78,9 +77,11 @@ def merge_signals(
         )]
 
     # Embed signal texts
-    model = SentenceTransformer(config.BI_ENCODER_MODEL)
+    import asyncio
+    from pipeline.stages.s1_relevance import process_embeddings
+    
     texts = [_signal_text(s) for s in signals]
-    embeddings = model.encode(texts, convert_to_numpy=True)
+    embeddings, _ = asyncio.run(process_embeddings(texts, "RETRIEVAL_DOCUMENT"))
 
     # Compute pairwise cosine similarity
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)

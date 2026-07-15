@@ -7,7 +7,7 @@ import pc from 'picocolors';
 const run = (cmd) => execSync(cmd, { stdio: 'pipe', encoding: 'utf-8' });
 
 async function main() {
-    p.intro(pc.bgBlue(pc.black(' 🚀 TRINITY TRENDS RELEASE MANAGER ')));
+    p.intro(pc.bgBlue(pc.black('TRINITY TRENDS RELEASE MANAGER ')));
 
     const pkgPath = path.join(process.cwd(), 'package.json');
     if (!fs.existsSync(pkgPath)) {
@@ -84,10 +84,10 @@ async function main() {
     try {
         const safeTitle = title.replace(/"/g, '\\"');
         const safeNotes = notes.replace(/"/g, '\\"');
-        
+
         // Execute the gh cli command
         run(`gh release create v${VERSION} "${tarballPath}" -t "${safeTitle}" -n "${safeNotes}"`);
-        
+
         s.stop(pc.green(`GitHub Release v${VERSION} created successfully!`));
         p.log.success(`Check it out at: https://github.com/${getRepo(pkg)}/releases/tag/v${VERSION}`);
     } catch (err) {

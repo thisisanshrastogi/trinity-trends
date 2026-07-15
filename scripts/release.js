@@ -46,7 +46,7 @@ async function main() {
     if (!hasPushed) {
         p.log.warn('You MUST push `manifest.json` to the `main` branch on GitHub.');
         p.log.info('The CLI clients constantly fetch the raw manifest from the `main` branch to detect if there are new updates.');
-        p.log.info('Please run `git add`, `git commit`, and `git push origin main` before creating this GitHub Release.');
+        p.log.info('Please run `git add`, `git commit`, `git push origin main`, AND `git push --tags` before creating this GitHub Release.');
         process.exit(0);
     }
 

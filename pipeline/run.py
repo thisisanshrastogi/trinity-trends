@@ -65,9 +65,8 @@ def main():
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-        stream=sys.stderr,
+        format="%(message)s",
+        stream=sys.stdout,
     )
 
     # Validate input exists
@@ -87,32 +86,7 @@ def main():
     if not isinstance(output, FinalSynthesisOutput):
         return
 
-    # Print summary to stdout
-    print(f"\n{'='*60}")
-    print(f"  PIPELINE COMPLETE — {output.topic}")
-    print(f"{'='*60}")
-    print(f"  Trend Catchers:     {len(output.trend_catchers)}")
-    if output.raw_analysis:
-        print(f"  Signals found:      {len(output.raw_analysis.signals)}")
-        print(f"  Pain points:        {len(output.raw_analysis.top_pain_points)}")
-        print(f"  Feature requests:   {len(output.raw_analysis.top_feature_requests)}")
-        print(f"  Questions:          {len(output.raw_analysis.top_questions)}")
-        print(f"  Total evidence:     {output.raw_analysis.stats.get('total_evidence', '?')}")
-        print(f"  Sources:            {', '.join(output.raw_analysis.stats.get('sources', []))}")
-    print(f"  Output:             {args.output}")
-    print(f"{'='*60}\n")
 
-    if output.raw_analysis and output.raw_analysis.top_pain_points:
-        print("  Top Pain Points:")
-        for i, pp in enumerate(output.raw_analysis.top_pain_points[:3], 1):
-            print(f"    {i}. {pp.get('pain_point', pp.get('summary', ''))}")
-        print()
-
-    if output.raw_analysis and output.raw_analysis.top_feature_requests:
-        print("  Top Feature Requests:")
-        for i, fr in enumerate(output.raw_analysis.top_feature_requests[:3], 1):
-            print(f"    {i}. {fr.get('feature_request', fr.get('summary', ''))}")
-        print()
 
 
 if __name__ == "__main__":

@@ -465,6 +465,7 @@ async function manageSession(session: Session) {
             minPoints: 2,
             after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           },
+          onLog: (msg) => s.message(msg),
         });
         s.stop(pc.green('Pipeline resumed successfully.'));
         await pause();
@@ -713,6 +714,7 @@ async function main() {
             minPoints: 2,
             after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           },
+          onLog: (msg) => s.message(msg),
         });
 
         s.stop(pc.green('Pipeline complete!'));

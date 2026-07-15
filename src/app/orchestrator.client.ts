@@ -48,6 +48,7 @@ class SessionTokenTracer implements Tracer {
 
 
 export interface PipelineCollectionOptions {
+  onLog?: (msg: string) => void;
   sessionId?: string;
   startStage?: PipelineStage;
   endStage?: PipelineStage;
@@ -124,24 +125,29 @@ export class OrchestratorClient {
    * @param options Configuration for expansion and collectors
    */
   async runPipeline(userEmail: string, userName: string, query: string, options?: PipelineCollectionOptions): Promise<string> {
-    console.log(`[Orchestrator] Starting pipeline for query: "${query}"`);
+    const log = (msg: string) => {
+      if (options?.onLog) options.onLog(msg);
+      else console.log(msg);
+    };
+
+    log(`Starting pipeline for query: "${query}"`);
     const topK = options?.topK ?? 10;
 
     // 1. Create or get user
     let user = this.repo.getUserByEmail(userEmail);
     if (!user) {
-      console.log(`[Orchestrator] Creating new user: ${userName} (${userEmail})`);
+      log(`Creating new user: ${userName} (${userEmail})`);
       user = this.repo.createUser({ name: userName, email: userEmail });
     } else {
-      console.log(`[Orchestrator] Found existing user: ${user.id}`);
+      log(`Found existing user: ${user.id}`);
     }
 
     let session = options?.sessionId ? this.repo.getSessionById(options.sessionId) : null;
     if (!session) {
-      console.log(`[Orchestrator] Creating new session...`);
+      log(`Creating new session...`);
       session = this.repo.createSession({ userId: user.id, query });
     } else {
-      console.log(`[Orchestrator] Resuming session: ${session.id}`);
+      log(`Resuming session: ${session.id}`);
     }
 
     this.tokenTracer.setSession(session.id);
@@ -165,7 +171,7 @@ export class OrchestratorClient {
 
       // 3. Intent Analysis
       if (startIndex <= 0 && 0 <= endIndex) {
-        console.log(`[Orchestrator] Stage 1/4: Intent Analysis`);
+        log(`Stage 1/4: Intent Analysis`);
         const intentRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'intent_analysis' });
 
         intentResult = await this.intentAnalyzer.analyze(query);
@@ -195,7 +201,7 @@ export class OrchestratorClient {
       // 4. Expansion & Scoring
       let scoredExpansion: any = null;
       if (startIndex <= 1 && 1 <= endIndex) {
-        console.log(`[Orchestrator] Stage 2/4: Topic Expansion & Scoring`);
+        log(`Stage 2/4: Topic Expansion & Scoring`);
         const expansionRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'topic_expansion' });
 
         if (!intentResult) {
@@ -226,7 +232,7 @@ export class OrchestratorClient {
 
       // 5. Collection
       if (startIndex <= 2 && 2 <= endIndex) {
-        console.log(`[Orchestrator] Stage 3/4: Data Collection (Top ${topK} candidates)`);
+        log(`Stage 3/4: Data Collection (Top ${topK} candidates)`);
         const collectionRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'collection' });
 
         if (!scoredExpansion) {
@@ -242,7 +248,7 @@ export class OrchestratorClient {
 
           for (let i = 0; i < candidatesToCollect.length; i++) {
             const candidate = candidatesToCollect[i];
-            console.log(`\n[Orchestrator] Collecting for topic ${i + 1}/${candidatesToCollect.length}: "${candidate.query}"`);
+            log(`Collecting topic ${i + 1}/${candidatesToCollect.length}: "${candidate.query}"`);
 
             // Upsert candidate as a topic
             const topic = this.repo.upsertTopic({
@@ -250,8 +256,6 @@ export class OrchestratorClient {
               sessionId: session.id,
               source: 'expansion'
             });
-
-            console.log(`  -> Collecting from Reddit, YouTube, and Hacker News in parallel...`);
             
             const results = await Promise.allSettled([
               this.redditCollector.collect({
@@ -297,9 +301,9 @@ export class OrchestratorClient {
                 resultJson: JSON.stringify(redditResult.value),
                 resultCount: redditResult.value.length
               });
-              console.log(`  -> Reddit: ${redditResult.value.length} items collected.`);
+              log(`Reddit: ${redditResult.value.length} items`);
             } else {
-              console.error(`  -> Reddit collection failed: ${redditResult.reason}`);
+              log(`Reddit collection failed: ${redditResult.reason}`);
             }
 
             if (ytResult.status === 'fulfilled') {
@@ -311,9 +315,9 @@ export class OrchestratorClient {
                 resultJson: JSON.stringify(ytResult.value),
                 resultCount: ytResult.value.length
               });
-              console.log(`  -> YouTube: ${ytResult.value.length} items collected.`);
+              log(`YouTube: ${ytResult.value.length} items`);
             } else {
-              console.error(`  -> YouTube collection failed: ${ytResult.reason}`);
+              log(`YouTube collection failed: ${ytResult.reason}`);
             }
 
             if (hnResult.status === 'fulfilled') {
@@ -325,9 +329,9 @@ export class OrchestratorClient {
                 resultJson: JSON.stringify(hnResult.value),
                 resultCount: hnResult.value.length
               });
-              console.log(`  -> Hacker News: ${hnResult.value.length} items collected.`);
+              log(`Hacker News: ${hnResult.value.length} items`);
             } else {
-              console.error(`  -> Hacker News collection failed: ${hnResult.reason}`);
+              log(`Hacker News collection failed: ${hnResult.reason}`);
             }
 
             // // Google Trends
@@ -369,10 +373,10 @@ export class OrchestratorClient {
 
       // 6. Python Pipeline
       if (startIndex <= 3 && 3 <= endIndex) {
-        console.log(`\n[Orchestrator] Stage 4/4: Python Pipeline Analysis`);
+        log(`Stage 4/4: Python Pipeline Analysis`);
         const pythonRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'python_analysis' });
 
-        await this.exportAndRunPython(session.id, query, options?.pythonStartStage, options?.pythonEndStage);
+        await this.exportAndRunPython(session.id, query, options?.pythonStartStage, options?.pythonEndStage, options);
 
         this.repo.updatePipelineRun(pythonRun.id, {
           status: 'completed',
@@ -384,21 +388,26 @@ export class OrchestratorClient {
       if (endIndex === stages.length - 1) {
         this.repo.completeSession(session.id);
       }
-      console.log(`\n[Orchestrator] Pipeline paused or completed successfully for session ${session.id}`);
+      log(`Pipeline paused or completed successfully for session ${session.id}`);
       return session.id;
 
     } catch (err: any) {
-      console.error(`\n[Orchestrator] Pipeline failed: ${err.message}`);
+      if (options?.onLog) options.onLog(`Pipeline failed: ${err.message}`);
       throw err; // rethrow or handle differently
     }
   }
 
-  private async exportAndRunPython(sessionId: string, seedQuery: string, startStage = 0, endStage = 9) {
+  private async exportAndRunPython(sessionId: string, seedQuery: string, startStage = 0, endStage = 9, options?: PipelineCollectionOptions) {
     const fs = await import('fs');
     const path = await import('path');
-    const { execSync } = await import('child_process');
+    const { spawn } = await import('child_process');
 
-    console.log(`[Orchestrator] Formatting collection data for Python...`);
+    const log = (msg: string) => {
+      if (options?.onLog) options.onLog(msg);
+      else console.log(msg);
+    };
+
+    log(`Formatting collection data for Python...`);
     const collectorResults = this.repo.getCollectorResultsBySession(sessionId);
 
     // Group by query
@@ -432,7 +441,7 @@ export class OrchestratorClient {
 
     fs.writeFileSync(inputPath, JSON.stringify(finalOutput, null, 2), 'utf8');
 
-    console.log(`[Orchestrator] Exported to ${inputPath}. Running python pipeline...`);
+    log(`Exported to JSON. Running python pipeline...`);
     try {
       const { fileURLToPath } = await import('url');
       const { dirname } = await import('path');
@@ -453,12 +462,42 @@ export class OrchestratorClient {
       const absoluteOutputPath = path.resolve(process.cwd(), outputPath);
       const absoluteStateFile = path.resolve(process.cwd(), stateFile);
 
-      const cmd = `"${pythonExec}" -m pipeline.run --input "${absoluteInputPath}" --output "${absoluteOutputPath}" --start-stage ${startStage} --end-stage ${endStage} --state-file "${absoluteStateFile}"`;
-      console.log(`[Orchestrator] Executing: ${cmd}`);
-
       // Run from installRoot so `-m pipeline.run` finds the python module
-      execSync(cmd, { stdio: 'inherit', cwd: installRoot });
-      console.log(`[Orchestrator] Python pipeline finished.`);
+      await new Promise<void>((resolve, reject) => {
+        let stderrBuffer = '';
+        const proc = spawn(pythonExec, [
+          '-m', 'pipeline.run',
+          '--input', absoluteInputPath,
+          '--output', absoluteOutputPath,
+          '--start-stage', startStage.toString(),
+          '--end-stage', endStage.toString(),
+          '--state-file', absoluteStateFile
+        ], { 
+          cwd: installRoot,
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        });
+
+        proc.stdout.on('data', (data) => {
+          const lines = data.toString().trim().split('\n');
+          for (const line of lines) {
+            if (line) log(line);
+          }
+        });
+
+        proc.stderr.on('data', (data) => {
+          stderrBuffer += data.toString();
+          const lines = data.toString().trim().split('\n');
+          for (const line of lines) {
+            if (line) log(line);
+          }
+        });
+
+        proc.on('close', (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`Python process exited with code ${code}\nStderr:\n${stderrBuffer.trim()}`));
+        });
+      });
+      log(`Python pipeline finished.`);
 
       if (fs.existsSync(outputPath)) {
         const pythonResultJson = fs.readFileSync(outputPath, 'utf8');
@@ -485,10 +524,10 @@ export class OrchestratorClient {
           sessionId,
           resultJson: pythonResultJson
         });
-        console.log(`[Orchestrator] Saved Python result to database.`);
+        log(`Saved Python result to database.`);
       }
     } catch (err: any) {
-      console.error(`[Orchestrator] Python pipeline execution failed.`);
+      log(`Python pipeline execution failed.`);
       throw err;
     }
   }

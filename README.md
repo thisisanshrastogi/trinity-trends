@@ -119,12 +119,16 @@ The installer will:
 
 ### From a Release Package
 
-```bash
-# 1. Download and extract the release
-tar -xzf trinity-trends-v1.0.27.tar.gz
-cd trinity-trends-v1.0.27
+1. Download the latest `.tar.gz` archive from the [GitHub Releases page](https://github.com/thisisanshrastogi/trinity-trends/releases).
+2. Extract the archive and navigate into the folder:
 
-# 2. Run the installer
+```bash
+tar -xzf trinity-trends-v0.1.2.tar.gz
+cd trinity-trends-v0.1.2
+```
+
+3. Run the installer:
+```bash
 node install.js
 ```
 

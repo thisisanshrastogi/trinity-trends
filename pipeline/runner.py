@@ -182,15 +182,7 @@ def run_pipeline(
         total_time = time.time() - total_start
         logger.info(f"Pipeline complete in {total_time:.1f}s")
         
-        print("=" * 60)
-        print(f"  PIPELINE COMPLETE — {state['seed_query']}")
-        print("=" * 60)
-        print(f"  Trend Catchers:     {len(final_output.trend_catchers)}")
-        if final_output.raw_analysis:
-            print(f"  Signals found:      {len(final_output.raw_analysis.signals)}")
-        print(f"  Total evidence:     {state.get('total_raw', '?')}")
-        print(f"  Output:             {output_path}")
-        print("=" * 60)
+
 
         return final_output
 

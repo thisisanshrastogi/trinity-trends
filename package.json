@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/app/cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "package": "node scripts/build.js",
     "release": "node scripts/release.js"
   },
   "dependencies": {

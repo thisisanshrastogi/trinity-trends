@@ -1,10 +1,10 @@
 {
-  "latest": "0.1.1",
+  "latest": "0.1.2",
   "manifestVersion": 1,
   "releases": {
-    "0.1.1": {
-      "url": "https://github.com/trinity-trends/trinity-trends/releases/download/v0.1.1/trinity-trends-v0.1.1.tar.gz",
-      "sha256": "9cef4a2d09762975c3060c009cb89165358b22b72a68026fbf23bfbf2d596c7f",
+    "0.1.2": {
+      "url": "https://github.com/trinity-trends/trinity-trends/releases/download/v0.1.2/trinity-trends-v0.1.2.tar.gz",
+      "sha256": "140ae492857a15ce8f0ef123b7c41818b5d8bc5a74ca322abdb5a51e615cb1eb",
       "changelog": "See GitHub releases for full changelog.",
       "releaseDate": "2026-07-15"
     }

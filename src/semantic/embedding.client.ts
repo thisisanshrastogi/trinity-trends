@@ -1,11 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingClientLike } from './semanticSearch.types.js';
+import { loadGlobalEnv } from '../utils/env.js';
 
-try {
-  process.loadEnvFile();
-} catch (e) {
-  // Ignore
-}
+loadGlobalEnv();
 
 export class GoogleEmbeddingClient implements EmbeddingClientLike {
   private readonly ai: GoogleGenAI;

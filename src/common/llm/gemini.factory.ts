@@ -2,13 +2,10 @@ import { GoogleGenAI } from "@google/genai";
 import { LLMCaller, LLMFactory } from "./llm.types.js";
 import { GeminiCaller } from "./gemini.caller.js";
 import { Tracer } from "./llm.trace.js";
+import { loadGlobalEnv } from "../../utils/env.js";
 
 // Ensure environment variables are loaded (especially when running tests directly)
-try {
-  process.loadEnvFile();
-} catch (e) {
-  // Ignore if .env doesn't exist
-}
+loadGlobalEnv();
 
 export interface GeminiFactoryConfig {
   apiKey?: string;

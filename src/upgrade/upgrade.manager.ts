@@ -380,18 +380,22 @@ export class UpgradeManager {
   }
 
   private runPostInstallHooks(): void {
+    // 1. Reinstall Node deps
     try {
-      // Reinstall production node deps in case package.json changed
       execSync('npm install --omit=dev', {
         cwd: this.projectRoot,
         stdio: 'pipe',
         timeout: 120000,
       });
+    } catch (err: any) {
+      console.warn(`[WARN] Node deps reinstall failed: ${err.message}`);
+    }
 
-      // Reinstall Python deps if pipeline exists
+    // 2. Reinstall Python deps
+    try {
       const pipelineDir = path.join(this.projectRoot, 'pipeline');
       const venvDir = path.join(pipelineDir, '.venv');
-      
+
       if (fs.existsSync(pipelineDir)) {
         if (!fs.existsSync(venvDir)) {
           console.log('[INFO] Creating Python virtual environment...');
@@ -423,16 +427,19 @@ export class UpgradeManager {
           });
         }
       }
+    } catch (err: any) {
+      console.warn(`[WARN] Python deps reinstall failed: ${err.message}`);
+    }
 
-      // Re-link CLI
+    // 3. Re-link CLI
+    try {
       execSync('npm link', {
         cwd: this.projectRoot,
         stdio: 'pipe',
         timeout: 30000,
       });
     } catch (err: any) {
-      // Non-fatal — warn but continue
-      console.warn(`[WARN] Post-install hooks encountered issues: ${err.message}`);
+      console.warn(`[WARN] NPM link failed: ${err.message}`);
     }
   }
 

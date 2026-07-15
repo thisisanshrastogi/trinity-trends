@@ -1,5 +1,5 @@
 {
-  "latest": "0.1.4",
+  "latest": "0.1.5",
   "manifestVersion": 1,
   "releases": {
     "0.1.3": {
@@ -11,6 +11,12 @@
     "0.1.4": {
       "url": "https://github.com/thisisanshrastogi/trinity-trends/releases/download/v0.1.4/trinity-trends-v0.1.4.tar.gz",
       "sha256": "e82c013346465a8122a5b6e01837e3dfa1c978bfc7a0065fcb3508d76be5818b",
+      "changelog": "See GitHub releases for full changelog.",
+      "releaseDate": "2026-07-15"
+    },
+    "0.1.5": {
+      "url": "https://github.com/thisisanshrastogi/trinity-trends/releases/download/v0.1.5/trinity-trends-v0.1.5.tar.gz",
+      "sha256": "ebb74ff0a952ede29a7fbf3abfc8631aea2ba79655d24130ce045a9764372551",
       "changelog": "See GitHub releases for full changelog.",
       "releaseDate": "2026-07-15"
     }

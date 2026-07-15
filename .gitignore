@@ -61,6 +61,5 @@ Thumbs.db
 
 # Release and Upgrades
 dist_release/*
-!dist_release/manifest.json
 .upgrade_*/
 .upgrade_in_progress

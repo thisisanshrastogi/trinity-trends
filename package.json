@@ -2,6 +2,7 @@
   "name": "trinity-trends",
   "version": "0.1.3",
   "private": true,
+  "repository": "thisisanshrastogi/trinity-trends",
   "type": "module",
   "bin": {
     "trinity": "./dist/src/app/cli.js"

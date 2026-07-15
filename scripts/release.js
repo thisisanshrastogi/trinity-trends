@@ -19,7 +19,7 @@ async function main() {
     const VERSION = pkg.version;
     const DIST_NAME = `trinity-trends-v${VERSION}`;
     const tarballPath = path.join('dist_release', `${DIST_NAME}.tar.gz`);
-    const manifestPath = path.join('dist_release', 'manifest.json');
+    const manifestPath = path.join(process.cwd(), 'manifest.json');
 
     if (!fs.existsSync(tarballPath) || !fs.existsSync(manifestPath)) {
         p.log.error(`Release artifacts for v${VERSION} not found!`);
@@ -34,7 +34,7 @@ async function main() {
 
     // CRITICAL: Remind them about the manifest.json
     const hasPushed = await p.confirm({
-        message: 'CRITICAL: Have you committed and pushed `dist_release/manifest.json` and code changes to the `main` branch?',
+        message: 'CRITICAL: Have you committed and pushed `manifest.json` (at project root) and code changes to the `main` branch?',
         initialValue: false,
     });
 

@@ -76,7 +76,7 @@ if (tarballPath && fs.existsSync(tarballPath)) {
   hash.update(data);
   const sha256 = hash.digest('hex');
   
-  const manifestPath = path.join('dist_release', 'manifest.json');
+  const manifestPath = path.join(process.cwd(), 'manifest.json');
   let manifest = {
     latest: VERSION,
     manifestVersion: 1,

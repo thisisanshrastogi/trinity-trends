@@ -216,7 +216,7 @@ def synthesize_trends(
     try:
         # Request generation with enforced schema and advanced dynamic reasoning
         response = client.models.generate_content(
-            model="gemini-3.1-flash",  # e.g., "gemini-3.1-flash-lite" or "gemini-3.1-pro-preview"
+            model="gemini-3.5-flash",  # e.g., "gemini-3.1-flash-lite" or "gemini-3.1-pro-preview"
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=1.0,  # 1.0 is the recommended standard when thinking is enabled

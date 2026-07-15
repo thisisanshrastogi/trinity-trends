@@ -1,7 +1,9 @@
 import * as lancedb from '@lancedb/lancedb';
 import path from 'path';
 
-const DEFAULT_DB_PATH = path.resolve(process.cwd(), '.lancedb');
+import os from 'os';
+
+const DEFAULT_DB_PATH = path.resolve(os.homedir(), '.trinity_trends', '.lancedb');
 
 /**
  * Manages a shared LanceDB connection with multiple named tables.

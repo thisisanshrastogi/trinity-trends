@@ -34,6 +34,8 @@ export class YouTubeClient implements ClientLike<YouTubeSearchRequest> {
       const { sp } = encodeSp(req.filters);
       params.set("sp", sp);
     }
+    params.set("gl", req.region ?? "US");   // in the path, not axios params
+    params.set("hl", "en");
     return `/results?${params.toString()}`;
   }
 
@@ -109,3 +111,4 @@ export class YouTubeClient implements ClientLike<YouTubeSearchRequest> {
     return data;
   }
 }
+

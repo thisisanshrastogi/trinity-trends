@@ -20,12 +20,10 @@ const KIND_OF: Record<ExpansionSource, CandidateKind> = {
 
 export class ExpansionService {
   constructor(
-    private readonly analyzer: IntentAnalyzerLike,
     private readonly expanders: QueryExpander[],
   ) {}
 
-  async expand(seed: string): Promise<ExpansionResult> {
-    const intent = await this.analyzer.analyze(seed);
+  async expand(seed: string, intent: IntentAnalysis): Promise<ExpansionResult> {
     const topics = intent.topics;
 
     // Expand every topic with every expander in parallel.

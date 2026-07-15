@@ -1,410 +1,189 @@
-## Database Design
+# Entity Relationship Diagram
 
-Version 0.1
-
----
-
-# 1. Philosophy
-
-The database stores business entities.
-
-The database does not store temporary pipeline state.
-
-Intermediate computations should be regenerated whenever possible.
-
-Only information that is expensive to recollect or valuable historically should be persisted.
+This document provides visual representations of the data relationships in Trinity Trends.
 
 ---
 
-# 2. Storage Categories
-
-Permanent
-
-- Topics
-    
-- Analysis Runs
-    
-- Queries
-    
-- Normalized Content
-    
-- Opportunities
-    
-
-Cache
-
-- Raw Platform Responses
-    
-- LLM Responses
-    
-- Search Results
-    
-
-Computed
-
-- Features
-    
-- Gap Scores
-    
-- Trend Scores
-    
-- Rankings
-    
-
----
-
-# 3. Entity Relationship Diagram
+## Core ERD
 
 ```
-                 Topic
-                   │
-        ┌──────────┴──────────┐
-        ▼                     ▼
- Analysis Run            Normalized Content
-        │                     │
-        ▼                     ▼
-     Query              Metric Snapshot
-        │
-        ▼
-  Opportunity
+┌──────────────────┐
+│      users       │
+├──────────────────┤
+│ id          (PK) │
+│ name             │
+│ email       (UQ) │
+│ created_at       │
+└────────┬─────────┘
+         │ 1:N
+         ▼
+┌──────────────────┐         ┌──────────────────────┐
+│    sessions      │────────>│    intent_results     │
+├──────────────────┤  1:1    ├──────────────────────┤
+│ id          (PK) │         │ id              (PK) │
+│ user_id     (FK) │         │ session_id      (FK) │
+│ query            │         │ query                │
+│ created_at       │         │ result_json          │
+│ completed_at     │         │ created_at           │
+└──┬───┬───┬───┬───┘         └──────────────────────┘
+   │   │   │   │
+   │   │   │   │  1:1        ┌──────────────────────┐
+   │   │   │   └────────────>│  expansion_results   │
+   │   │   │                 ├──────────────────────┤
+   │   │   │                 │ id              (PK) │
+   │   │   │                 │ session_id      (FK) │
+   │   │   │                 │ seed                 │
+   │   │   │                 │ result_json          │
+   │   │   │                 │ candidate_count      │
+   │   │   │                 │ created_at           │
+   │   │   │                 └──────────────────────┘
+   │   │   │
+   │   │   │  1:N            ┌──────────────────────┐
+   │   │   └────────────────>│   pipeline_runs      │
+   │   │                     ├──────────────────────┤
+   │   │                     │ id              (PK) │
+   │   │                     │ session_id      (FK) │
+   │   │                     │ stage                │
+   │   │                     │ status               │
+   │   │                     │ started_at           │
+   │   │                     │ completed_at         │
+   │   │                     │ error                │
+   │   │                     │ result_summary       │
+   │   │                     └──────────────────────┘
+   │   │
+   │   │  1:N                ┌──────────────────────┐
+   │   └────────────────────>│     topics           │
+   │                         ├──────────────────────┤
+   │                         │ id         (PK,hash) │
+   │                         │ text                 │
+   │                         │ session_id      (FK) │
+   │                         │ source               │
+   │                         │ created_at           │
+   │                         └──────────┬───────────┘
+   │                                    │ 1:N
+   │                                    ▼
+   │                         ┌──────────────────────┐
+   │                         │ topic_platform_ids   │
+   │                         ├──────────────────────┤
+   │                         │ topic_id        (FK) │
+   │                         │ platform             │
+   │                         │ platform_id          │
+   │                         │ hashed_id       (UQ) │
+   │                         └──────────────────────┘
+   │
+   │  1:N                    ┌──────────────────────┐
+   ├────────────────────────>│  collector_results   │
+   │                         ├──────────────────────┤
+   │                         │ id              (PK) │
+   │                         │ topic_id        (FK) │
+   │                         │ session_id      (FK) │
+   │                         │ platform             │
+   │                         │ query                │
+   │                         │ result_json          │
+   │                         │ result_count         │
+   │                         │ collected_at         │
+   │                         └──────────────────────┘
+   │
+   │  1:1                    ┌──────────────────────┐
+   ├────────────────────────>│   python_results     │
+   │                         ├──────────────────────┤
+   │                         │ id              (PK) │
+   │                         │ session_id      (FK) │
+   │                         │ result_json          │
+   │                         │ created_at           │
+   │                         └──────────────────────┘
+   │
+   │  1:N                    ┌──────────────────────┐
+   └────────────────────────>│    token_usage       │
+                             ├──────────────────────┤
+                             │ id              (PK) │
+                             │ session_id      (FK) │
+                             │ stage                │
+                             │ model                │
+                             │ prompt_tokens        │
+                             │ output_tokens        │
+                             │ total_tokens         │
+                             │ created_at           │
+                             └──────────────────────┘
 ```
 
 ---
 
-# 4. Tables
+## Data Flow Through Tables
+
+This diagram shows the order in which tables are populated during a pipeline run:
+
+```
+1. users              ← Created on first run (or fetched if existing)
+      │
+2. sessions           ← Created at pipeline start
+      │
+      ├─ 3. intent_results      ← Stage 1: Intent Analysis
+      │       │
+      │       └─ topics (source="intent")
+      │
+      ├─ 4. expansion_results   ← Stage 2: Expansion & Scoring
+      │
+      ├─ 5. topics (source="expansion")  ← Stage 3: Before collection
+      │       │
+      │       └─ collector_results       ← Stage 3: Per topic × platform
+      │
+      ├─ 6. python_results      ← Stage 4: Python pipeline output
+      │
+      ├─ 7. token_usage         ← Accumulated across all stages
+      │
+      └─ pipeline_runs          ← One per stage (tracks status)
+```
 
 ---
 
-## Topics
+## Cardinality Summary
 
-Represents canonical topics.
-
-Fields
-
-id
-
-canonical_name
-
-aliases (JSONB)
-
-category
-
-created_at
-
-updated_at
-
-last_analysis_at
+| Relationship | Type | Description |
+|-------------|------|-------------|
+| users → sessions | 1:N | A user can run many analysis sessions |
+| sessions → topics | 1:N | Each session discovers multiple topics |
+| topics → topic_platform_ids | 1:N | A topic may appear on multiple platforms |
+| sessions → pipeline_runs | 1:N | Each session has 4 pipeline stages |
+| sessions → intent_results | 1:1 | One intent analysis per session |
+| sessions → expansion_results | 1:1 | One expansion result per session |
+| sessions → collector_results | 1:N | Multiple collections (topic × platform) |
+| sessions → python_results | 1:1 | One final analysis per session |
+| sessions → token_usage | 1:N | Multiple token records (per LLM call) |
 
 ---
 
-## Analysis Runs
-
-Represents one pipeline execution.
-
-Fields
-
-id
-
-topic_id
-
-input
-
-status
-
-started_at
-
-completed_at
-
-duration_ms
-
-sources_used (JSONB)
-
-warnings (JSONB)
-
-errors (JSONB)
-
----
-
-## Queries
-
-Represents expanded search queries.
-
-Fields
-
-id
-
-run_id
-
-query
-
-source
-
-confidence
-
----
-
-## Normalized Content
-
-Represents platform-independent content.
-
-Fields
-
-id
-
-topic_id
-
-platform
-
-external_id
-
-title
-
-description
-
-url
-
-author
-
-published_at
-
-views
-
-likes
-
-comments
-
-shares
-
-engagement_rate
-
-raw_payload (JSONB)
-
-created_at
-
----
-
-## Opportunities
-
-Represents final recommendations.
-
-Fields
-
-id
-
-run_id
-
-type
-
-title
-
-platform
-
-format
-
-score
-
-confidence
-
-reason
-
-suggested_content
-
-suggested_hook
-
-questions (JSONB)
-
-evidence (JSONB)
-
-created_at
-
----
-
-## Metric Snapshots
-
-Historical measurements.
-
-Fields
-
-id
-
-content_id
-
-captured_at
-
-views
-
-likes
-
-comments
-
-shares
-
-engagement_rate
-
-velocity
-
-momentum
-
----
-
-# 5. Relationships
-
-Topic
-
-1
-
-↓
-
-Many
-
-Analysis Runs
-
-Topic
-
-1
-
-↓
-
-Many
-
-Normalized Content
-
-Analysis Run
-
-1
-
-↓
-
-Many
-
-Queries
-
-Analysis Run
-
-1
-
-↓
-
-Many
-
-Opportunities
-
-Normalized Content
-
-1
-
-↓
-
-Many
-
-Metric Snapshots
-
----
-
-# 6. JSONB Usage
-
-JSONB is used only for data that varies significantly between platforms.
-
-Examples
-
-aliases
-
-warnings
-
-errors
-
-sources_used
-
-raw_payload
-
-questions
-
-evidence
-
-Structured business fields remain relational.
-
----
-
-# 7. Indexes
-
-Topics
-
-canonical_name
-
-Analysis Runs
-
-topic_id
-
-completed_at
-
-Queries
-
-query
-
-run_id
-
-Normalized Content
-
-topic_id
-
-platform
-
-published_at
-
-Opportunities
-
-run_id
-
-score
-
-type
-
-Metric Snapshots
-
-content_id
-
-captured_at
-
----
-
-# 8. Data Retention
-
-Permanent
-
-Topics
-
-Runs
-
-Normalized Content
-
-Opportunities
-
-Snapshots
-
-Temporary
-
-Raw platform payloads may be removed after configurable retention.
-
-Cache entries expire automatically.
-
----
-
-# 9. Versioning
-
-Pipeline version
-
-Scoring version
-
-Prompt version
-
-should be recorded inside Analysis Runs.
-
-This allows historical analyses to be reproduced.
-
----
-
-# 10. Future Extensions
-
-Additional platforms require no schema modifications.
-
-Platform-specific information should remain inside JSONB payloads while normalized fields remain stable.
+## Key Design Patterns
+
+### Hash-Based Topic IDs
+
+```
+Input:  "AI coding tools"
+         │
+         ▼
+   toLowerCase() + trim()
+         │
+         ▼
+   SHA-256 hash
+         │
+         ▼
+   "a3f2c8..."  ← Used as topic ID
+```
+
+This ensures the same topic phrase always gets the same ID, enabling natural deduplication via `INSERT OR IGNORE`.
+
+### Cascade Deletion
+
+All tables use `ON DELETE CASCADE` from `sessions`. Deleting a session automatically cleans up:
+
+```
+DELETE FROM sessions WHERE id = ?
+         │
+         ├── topics (and their topic_platform_ids)
+         ├── pipeline_runs
+         ├── intent_results
+         ├── expansion_results
+         ├── collector_results
+         ├── python_results
+         └── token_usage
+```

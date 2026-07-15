@@ -1,364 +1,237 @@
-## System Requirements Specification (SRS)
+# Software Requirements Specification
 
-**Version:** 0.1
-
----
-
-# 1. Purpose
-
-The Opportunity Discovery Engine is a platform that helps content creators identify high-value content opportunities by analyzing multiple online platforms.
-
-Given a topic, keyword, or question, the system discovers:
-
-- Content gaps (high demand but weak existing coverage)
-    
-- Emerging trends (rapidly growing topics with strong engagement)
-    
-
-The system provides evidence-based recommendations backed by real platform metrics rather than generating suggestions solely from an LLM.
+**Project:** Trinity Trends — A Pretty Trends Analyzer
+**Version:** 1.0
 
 ---
 
-# 2. Goals
+## 1. Purpose
+
+Trinity Trends is a multi-platform trend analysis engine that helps content creators discover actionable content opportunities by analyzing real-time data from social media and discussion platforms.
+
+Given a topic or query, the system:
+
+- Collects data from Reddit, YouTube, and Hacker News
+- Applies NLP and ML techniques to filter, cluster, and score content
+- Uses LLM-powered synthesis to produce structured "Trend Catchers" — actionable recommendations with suggested content, formats, angles, and deadlines
+
+The system produces evidence-based recommendations backed by real platform metrics and cross-platform signal confirmation, not LLM hallucinations.
+
+---
+
+## 2. Goals
 
 The system shall:
 
-- Analyze a topic across multiple online platforms.
-    
-- Discover unanswered or underserved content opportunities.
-    
-- Detect rapidly growing trends.
-    
-- Produce structured JSON output for downstream content generation.
-    
-- Store historical analyses for future comparison.
-    
-- Support additional data sources through a pluggable architecture.
-    
+1. Accept a natural language topic and intelligently expand it into related search queries
+2. Collect public data from multiple platforms without requiring platform API keys
+3. Normalize cross-platform data into a unified representation
+4. Filter, deduplicate, and cluster content using ML models (sentence-transformers, HDBSCAN)
+5. Extract structured signals from clusters via LLM
+6. Score and rank signals using multi-factor deterministic algorithms
+7. Synthesize actionable trend recommendations using LLM with structured outputs
+8. Persist all data and results for session management and historical lookup
+9. Track LLM token usage for cost auditing
+10. Provide a polished, interactive terminal interface
 
 ---
 
-# 3. Non-Goals (Version 1)
+## 3. Non-Goals (Current Version)
 
-The first version will not:
+The current version does not:
 
-- Generate complete content automatically.
-    
-- Predict future viral content using machine learning.
-    
-- Personalize recommendations for individual creators.
-    
-- Perform continuous crawling of the entire web.
-    
-- Provide real-time notifications.
-    
+- Generate complete content automatically (it recommends what to create, not the content itself)
+- Perform continuous monitoring or real-time alerts
+- Support authenticated platform access (all collection is from public interfaces)
+- Provide a web UI (CLI/TUI only)
+- Support multi-user concurrent access (single-user, single-process)
 
 ---
 
-# 4. Functional Requirements
+## 4. Functional Requirements
 
-## FR-1 Input
+### FR-1: Intent Analysis
 
-The system shall accept:
+The system shall classify user queries into intent categories (`topic`, `shopping`, `news`, `learning`, `brand`) and extract core topic phrases using Gemini with structured JSON output.
 
-- Topic
-    
-- Keyword
-    
-- Question
-    
+**Input:** Natural language query (e.g., "best AI coding tools 2024")
+**Output:** `{ intent, category, confidence, topics[] }`
 
-Example:
+### FR-2: Query Expansion
 
-- "Claude Code"
-    
-- "AI Agents"
-    
-- "How to use MCP"
-    
+The system shall expand extracted topics into semantically related search queries using three independent strategies:
 
----
+| Strategy | Source |
+|----------|--------|
+| Google Autocomplete | Real search demand signals |
+| LLM Subtopic Generation | Structural coverage of the topic space |
+| Google Trends | Trending related queries |
 
-## FR-2 Query Expansion
+Expansion results shall be deduplicated by normalized query text.
 
-The system shall expand the user's input into related search queries using multiple sources.
+### FR-3: Semantic Scoring
 
-Examples:
+The system shall rank expansion candidates by computing cosine similarity between Gemini embeddings of each candidate and the original query. Only the top-K candidates proceed to collection.
 
-Input:
+### FR-4: Data Collection
 
-Claude Code
+The system shall collect data from the following platforms without API keys:
 
-Expanded Queries:
+| Platform | Method | Data Collected |
+|----------|--------|---------------|
+| Reddit | HTML scraping (`old.reddit.com`) | Posts with titles, bodies, scores, comments, authors, subreddits |
+| YouTube | InnerTube API | Videos with titles, descriptions, view counts, channels |
+| Hacker News | Algolia Search API | Stories and comments with points, comment counts |
 
-- Claude Code Docker
-    
-- Claude Code MCP
-    
-- Claude Code Cursor
-    
-- Claude Code Pricing
-    
+Each collector shall support configurable limits, pagination, and filter parameters.
 
----
+### FR-5: Data Normalization (Pipeline Stage 0)
 
-## FR-3 Data Collection
+The system shall convert platform-specific data into a unified `NormalizedItem` representation. Normalization includes:
 
-The system shall collect information from supported platforms.
+- HTML/entity cleanup
+- Bot and deleted content filtering
+- Language detection (English only)
+- Minimum word count enforcement
+- Platform-weighted engagement scoring
 
-Initial platforms:
+### FR-6: Relevance Filtering & Reranking (Stages 1-2)
 
-- Google Autocomplete
-    
-- Google People Also Ask
-    
-- Google Trends
-    
-- Reddit
-    
-- YouTube
-    
+The system shall apply bi-encoder (sentence-transformers) relevance scoring followed by cross-encoder reranking to retain only topically relevant content.
 
-Future platforms:
+### FR-7: Deduplication & Clustering (Stages 3-4)
 
-- TikTok
-    
-- Instagram
-    
-- Quora
-    
-- Product Hunt
-    
-- Hacker News
-    
+The system shall:
 
----
+- Remove near-duplicate content using MinHash LSH + cosine similarity
+- Apply MMR diversification
+- Cluster remaining items using HDBSCAN
 
-## FR-4 Data Normalization
+### FR-8: Signal Extraction (Stage 5)
 
-The system shall convert platform-specific responses into a unified internal representation.
+The system shall use Gemini to extract structured signals from each cluster:
 
-All downstream modules shall operate on normalized data rather than raw platform responses.
+- Entity (product/tool)
+- Pain point
+- Feature request
+- Sentiment
+- Intent
+- Summary with representative quotes
 
----
+### FR-9: Signal Scoring (Stages 6-7)
 
-## FR-5 Content Gap Detection
+The system shall merge signals across clusters and compute multi-factor scores using deterministic algorithms:
 
-The system shall identify opportunities where:
+- Relevance, evidence count, velocity, source spread, engagement, novelty
 
-- demand exists
-    
-- existing content is insufficient
-    
-- coverage is outdated
-    
-- coverage exists in the wrong format
-    
-- important perspectives are missing
-    
+### FR-10: Trend Synthesis (Stage 9)
 
----
+The system shall use Gemini with dynamic reasoning to generate Trend Catchers containing:
 
-## FR-6 Trend Detection
+- Trend description and status (`rising` / `peaking`)
+- Platform and metrics
+- Suggested content, format, and angle
+- Reference links and act-by deadline
 
-The system shall identify topics experiencing rapid growth based on:
+### FR-11: Session Persistence
 
-- engagement
-    
-- growth velocity
-    
-- search momentum
-    
-- freshness
-    
-- cross-platform activity
-    
+The system shall persist all pipeline data in SQLite:
+
+- Users, sessions, topics, pipeline runs
+- Intent results, expansion results, collector results
+- Python analysis results, token usage
+
+Sessions shall be resumable — the system shall skip completed stages when resuming.
+
+### FR-12: Pipeline Checkpointing
+
+The Python pipeline shall support partial execution via `--start-stage` and `--end-stage` flags, with intermediate state checkpointing via pickle serialization.
+
+### FR-13: Token Usage Tracking
+
+The system shall capture and persist `usageMetadata` from all Gemini API calls (both TypeScript and Python) for cost auditing.
+
+### FR-14: Global CLI
+
+The system shall register a global `trinity` command via `npm link`, accessible from any directory on the user's system.
 
 ---
 
-## FR-7 Opportunity Ranking
+## 5. Non-Functional Requirements
 
-The system shall rank discovered opportunities using deterministic scoring algorithms.
+### Performance
 
-Only the highest scoring opportunities will be returned.
+| Scenario | Target |
+|----------|--------|
+| Intent analysis + expansion | < 10 seconds |
+| Data collection (5 topics × 3 platforms) | < 60 seconds |
+| Full Python pipeline (10 stages) | < 120 seconds |
+| Session resumption (skipping completed stages) | < 5 seconds |
 
----
+### Reliability
 
-## FR-8 AI Summarization
+- Failed collectors shall not terminate the pipeline — partial results are processed
+- Failed LLM calls shall fall back to metadata-only signals
+- Pipeline state is checkpointed after each stage via pickle
 
-The LLM shall not discover opportunities.
+### Extensibility
 
-The LLM shall only:
+- Adding a new platform requires implementing a `Client` + `Parser` + `Collector` — no changes to the analysis pipeline
+- Adding a new pipeline stage requires adding one file in `pipeline/stages/` and registering it in `runner.py`
 
-- explain findings
-    
-- generate suggested content ideas
-    
-- recommend formats
-    
-- generate structured JSON
-    
+### Portability
 
----
+- Cross-platform: Linux, macOS, Windows
+- Installer handles Python venv, Node dependencies, and CLI registration
+- Only external dependency: Gemini API key
 
-## FR-9 Storage
+### Security
 
-The system shall store:
-
-- analysis runs
-    
-- normalized content
-    
-- discovered gaps
-    
-- discovered trends
-    
-- historical metrics
-    
+- All SQL queries use parameterized statements (no string interpolation)
+- API keys stored in `.env` file (gitignored)
+- No network listeners in CLI mode (Fastify server is a separate entry point)
 
 ---
 
-## FR-10 Export
+## 6. System Architecture
 
-Each completed analysis shall be exportable as:
-
-- JSON
-    
-- CSV
-    
-- XLS
-    
-- PDF
-    
-
----
-
-# 5. Non-Functional Requirements
-
-## Performance
-
-Cached analysis:
-
-Target: under 2 seconds
-
-New analysis:
-
-Target: under 60 seconds
+```
+User ──> CLI (TUI) ──> OrchestratorClient
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        Intent Analysis  Expansion &    Data Collection
+        (Gemini LLM)     Scoring        (Reddit, YouTube, HN)
+                          (Gemini
+                           Embeddings)
+                              │
+                              ▼
+                     Python Pipeline (10 stages)
+                              │
+                              ▼
+                     Trend Catchers (JSON)
+                              │
+                              ▼
+                     SQLite Persistence
+```
 
 ---
 
-## Scalability
+## 7. Target Users
 
-The system shall support:
-
-- asynchronous analysis
-    
-- background workers
-    
-- scheduled refreshes
-    
-- cached topic analysis
-    
+- Content creators seeking data-driven topic selection
+- Marketing teams analyzing competitive landscapes
+- Developers evaluating technology trends
+- Researchers monitoring discourse across platforms
 
 ---
 
-## Extensibility
+## 8. Success Criteria
 
-Adding a new platform shall require implementing a new collector without modifying the analysis pipeline.
+The system is successful when it consistently:
 
----
-
-## Reliability
-
-Failed collectors shall not terminate the entire analysis.
-
-Partial results shall still be processed.
-
----
-
-## Maintainability
-
-The system shall follow modular architecture.
-
-Each subsystem shall expose clear interfaces.
-
-Business logic shall remain independent of infrastructure.
-
----
-
-# 6. Core Workflow
-
-User Input
-
-↓
-
-Query Expansion
-
-↓
-
-Data Collection
-
-↓
-
-Normalization
-
-↓
-
-Feature Extraction
-
-↓
-
-Gap Detection
-
-↓
-
-Trend Detection
-
-↓
-
-Ranking
-
-↓
-
-LLM Summarization
-
-↓
-
-Persistence
-
-↓
-
-API Response
-
----
-
-# 7. Primary Users
-
-- Content creators
-    
-- Marketing teams
-    
-- SEO specialists
-    
-- Startup founders
-    
-- Product marketers
-    
-
----
-
-# 8. Success Metrics
-
-The system will be considered successful if it consistently identifies actionable opportunities supported by measurable platform data.
-
-Primary indicators include:
-
-- relevance of identified content gaps
-    
-- accuracy of trend detection
-    
-- user trust in recommendations
-    
-- low analysis latency
-    
-- ease of adding new data sources
+1. Identifies actionable trends supported by cross-platform evidence
+2. Produces specific, non-generic content suggestions
+3. Completes a full analysis in under 3 minutes
+4. Enables session resumption without redundant computation
+5. Provides transparent token usage for cost management

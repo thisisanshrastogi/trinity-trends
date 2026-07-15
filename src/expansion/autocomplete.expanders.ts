@@ -34,7 +34,7 @@ export class GoogleAutocompleteExpander implements QueryExpander {
         "autocomplete",
         () =>
           this.httpClient.get("/complete/search", {
-            params: { client: "firefox", q: query },
+            params: { client: "firefox", q: query, gl: "us", hl: "en" },
           }),
         (r) => ({ status: r.status, suggestions: (r.data?.[1] ?? []).length }),
         (r) => r.data, // full [query, [suggestions], ...] payload to file

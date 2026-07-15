@@ -4,12 +4,13 @@ import { QueryExpander } from "../intent/intent.interface.js";
 import { IntentAnalysis, ExpandedQuery } from "../intent/intent.types.js";
 
 const SYSTEM_PROMPT = [
-  "You map a domain into its constituent subtopics for a content gap analyzer.",
-  "Enumerate the DISTINCT subtopics that make up the space — technologies,",
-  "products, sub-domains, protocols, communities, and emerging terms a domain",
-  "expert would list to cover it completely. Favor breadth: include nascent and",
-  "niche subtopics, not just popular ones. Do NOT return generic related searches.",
-  "do a websearch to find latest and relevant ones.",
+  "You map a specific user question into closely-related subtopics for a content gap analyzer.",
+  "Given a distilled topic plus the ORIGINAL question's intent and category, enumerate",
+  "subtopics that a person asking THAT question would actually care about — concrete",
+  "behaviors, products, pain points, and communities tied to the question's angle.",
+  "Stay anchored to the question's intent: do not drift into the broader domain's",
+  "infrastructure, regulation, or enterprise concerns unless the question is about those.",
+  "Prefer specific, searchable phrases over abstract category names.",
   "Return 10-15 items.",
 ].join(" ");
 
@@ -39,7 +40,8 @@ export class LLMSubtopicExpander implements QueryExpander {
     // Build a context-rich prompt: the query is a distilled topic, but
     // category/intent/sibling topics come from the original query analysis.
     const contextLines = [
-      `Domain: "${query}"`,
+      `Original question: "${intent.originalQuery}"`,
+      `Topic to expand: "${query}"`,
       `Intent: ${intent.intent}; Category: ${intent.category}`,
     ];
     // Pass sibling topics (other topics from the same query) for context
@@ -97,8 +99,8 @@ export class LLMSubtopicExpander implements QueryExpander {
       const obj = JSON.parse(raw.slice(start, end + 1));
       return Array.isArray(obj?.subtopics)
         ? obj.subtopics.filter(
-            (s: unknown): s is string => typeof s === "string",
-          )
+          (s: unknown): s is string => typeof s === "string",
+        )
         : [];
     } catch {
       return [];

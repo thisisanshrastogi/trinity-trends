@@ -37,7 +37,7 @@ function buildRecordingTracer(): { tracer: Tracer; events: TraceEvent[] } {
 
 function buildService(tracer: Tracer): ExpansionService {
   const factory = new GeminiFactory({ tracer }); // tracer flows to Gemini callers
-  return new ExpansionService(new LLMIntentAnalyzer(factory), [
+  return new ExpansionService([
     new LLMSubtopicExpander(factory, tracer),
     new GoogleAutocompleteExpander(tracer, 1),
     new TrendsExpander(new GoogleTrendsCollectorFallback(), "US", tracer),
@@ -71,7 +71,12 @@ test("expansion pipeline runs end-to-end and produces candidates", async () => {
   const service = buildService(tracer);
 
   console.log(`\n=== Running expansion for "${SEED}" ===\n`);
-  const result = await service.expand(SEED);
+  
+  const factory = new GeminiFactory({ tracer });
+  const analyzer = new LLMIntentAnalyzer(factory);
+  const intent = await analyzer.analyze(SEED);
+  
+  const result = await service.expand(SEED, intent);
 
   // --- intent ---
   assert.equal(result.seed, SEED);

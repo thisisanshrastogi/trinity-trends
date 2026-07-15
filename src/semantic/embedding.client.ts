@@ -15,7 +15,7 @@ export class GoogleEmbeddingClient implements EmbeddingClientLike {
   constructor(
     apiKey?: string,
     model: string = 'gemini-embedding-2',
-    batchSize: number = 100
+    batchSize: number = 50
   ) {
     // If apiKey is not provided, the SDK will automatically pick it up from process.env.GEMINI_API_KEY
     this.ai = new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
@@ -35,7 +35,7 @@ export class GoogleEmbeddingClient implements EmbeddingClientLike {
 
       try {
         // The response.embeddings should map 1-to-1 with the batch array
-        const embeddingsPromises = batch.map(text => 
+        const embeddingsPromises = batch.map(text =>
           this.ai.models.embedContent({
             model: this.model,
             contents: text,
@@ -45,7 +45,7 @@ export class GoogleEmbeddingClient implements EmbeddingClientLike {
           })
         );
         const responses = await Promise.all(embeddingsPromises);
-        
+
         for (const response of responses) {
           if (response.embeddings && response.embeddings.length > 0) {
             allEmbeddings.push(response.embeddings[0].values || []);

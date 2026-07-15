@@ -52,21 +52,21 @@ export class RedditClient implements ClientLike<RedditSearchRequest> {
 
     let postsAfter: string | undefined = undefined;
     do {
-      const res = await this.fetchWithBackoff(`${RedditClient.BASE}/r/${subreddit}/.json`, 
+      const res = await this.fetchWithBackoff(`${RedditClient.BASE}/r/${subreddit}/.json`,
         postsAfter ? { after: postsAfter, limit: 100 } : { limit: 100 }
       );
       const children = res.data?.data?.children || [];
       if (children.length === 0) break;
-      
+
       posts.push(...children.map((c: any) => c.data));
       postsAfter = res.data?.data?.after;
-      
+
       if (postsAfter) await new Promise((r) => setTimeout(r, 1000));
     } while (postsAfter);
 
     let commentsAfter: string | undefined = undefined;
     do {
-      const res = await this.fetchWithBackoff(`${RedditClient.BASE}/r/${subreddit}/comments/.json`, 
+      const res = await this.fetchWithBackoff(`${RedditClient.BASE}/r/${subreddit}/comments/.json`,
         commentsAfter ? { after: commentsAfter, limit: 100 } : { limit: 100 }
       );
       const children = res.data?.data?.children || [];

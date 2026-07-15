@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
 import wrapAnsi from 'wrap-ansi';
@@ -8,6 +9,8 @@ import quotes from 'inspirational-quotes';
 import { OrchestratorClient } from './orchestrator.client.js';
 import { SqliteRepository } from '../storage/sqlite/sqlite.repository.js';
 import { User, Session } from '../storage/storage.types.js';
+import { UpgradeManager } from '../upgrade/upgrade.manager.js';
+import { getCurrentVersion } from '../upgrade/version.js';
 
 const banner = `
 ████████╗██████╗ ██╗███╗   ██╗██╗████████╗██╗   ██╗
@@ -30,14 +33,14 @@ const repo = new SqliteRepository();
 
 function exitApp(): never {
   console.log('\n');
-  const ascii = figlet.textSync('Adios!', { font: 'ANSI Shadow' });
-  console.log(pc.magenta(ascii));
+  const ascii = figlet.textSync('See ya!', { font: 'Slant' });
+  console.log(pc.cyan(ascii));
 
   const quote = quotes.getQuote();
-  const separator = pc.cyan('✧ '.repeat(25));
+  const separator = pc.magenta('━'.repeat(60));
 
   console.log(separator);
-  console.log(pc.italic(`  "${quote.text}"`));
+  console.log(pc.italic(pc.white(`  "${quote.text}"`)));
   console.log(pc.gray(`       — ${quote.author}`));
   console.log(separator + '\n');
 
@@ -50,6 +53,7 @@ async function pause() {
 }
 
 function displayResults(sessionId: string) {
+  console.clear();
   p.note('PIPELINE RESULTS', 'Summary');
   const intentResult = repo.getIntentResult(sessionId);
   if (intentResult) {
@@ -64,8 +68,8 @@ function displayResults(sessionId: string) {
   const expansionResult = repo.getExpansionResult(sessionId);
   if (expansionResult) {
     const data = JSON.parse(expansionResult.resultJson);
-    console.log(pc.cyan('\n[*] Top Expanded Topics (Sample)'));
-    const topCandidates = data.candidates.slice(0, 10).map((c: any) => ({
+    console.log(pc.cyan('\n[*] Top Expanded Topics'));
+    const topCandidates = data.candidates.map((c: any) => ({
       Query: c.query,
       Source: c.source,
       Signal: c.trendSignal || '-',
@@ -148,33 +152,40 @@ async function viewCollectedData(sessionId: string) {
 
     if (p.isCancel(choice) || choice === -1) return;
 
+    console.clear();
     const selected = collectionResults[choice as number];
     p.note(`Platform: ${selected.platform.toUpperCase()}\nTopic: "${selected.query}"`, 'Results');
 
     try {
       const data = JSON.parse(selected.resultJson);
-      if (selected.platform === 'reddit') {
-        console.table(data.map((p: any) => ({
-          Title: p.title ? p.title.substring(0, 50) + '...' : '',
-          Subreddit: p.subreddit,
-          Score: p.score,
-          Comments: p.comments
-        })));
-      } else if (selected.platform === 'youtube') {
-        console.table(data.map((v: any) => ({
-          Title: v.title ? v.title.substring(0, 50) + '...' : '',
-          Channel: v.channelName,
-          Views: v.viewsText,
-          Length: v.duration
-        })));
-      } else if (selected.platform === 'hackerNews') {
-        console.table(data.map((p: any) => ({
-          Title: (p.title || p.text || '').substring(0, 50) + '...',
-          Type: p.type,
-          Author: p.author,
-          Points: p.points,
-          Comments: p.comments
-        })));
+      if (['reddit', 'youtube', 'hackerNews'].includes(selected.platform)) {
+        console.log(pc.cyan(`\nFound ${data.length} items:\n`));
+        data.forEach((item: any, idx: number) => {
+          console.log(pc.bold(pc.yellow(`[Item ${idx + 1}] Source: ${selected.platform.toUpperCase()}`)));
+
+          const title = item.title || '';
+          if (title) console.log(`Title: ${pc.white(pc.bold(title))}`);
+
+          let url = item.url || item.permalink || 'N/A';
+          if (selected.platform === 'reddit' && !url.startsWith('http')) {
+            url = 'https://reddit.com' + url;
+          }
+          console.log(`URL: ${pc.blue(url)}`);
+
+          let score = item.score ?? item.points ?? item.viewsText ?? '0';
+          let comments = item.comments ?? '0';
+          console.log(`Score/Views: ${score} | Comments: ${comments}`);
+
+          let content = item.body || item.description || item.text || '';
+          if (content) {
+            if (content.length > 200) {
+              content = content.substring(0, 200) + '...';
+            }
+            const wrappedText = wrapAnsi(content, 80).split('\n');
+            wrappedText.forEach((line: string) => console.log(`  ${pc.gray(line)}`));
+          }
+          console.log();
+        });
       } else if (selected.platform === 'googleTrends') {
         data.forEach((m: any) => {
           console.log(pc.bold(`\nMethod: ${m.method}`));
@@ -209,6 +220,7 @@ async function viewPythonResult(sessionId: string) {
   }
 
   try {
+    console.clear();
     const data = JSON.parse(pythonResult.resultJson);
     p.note(`Topic: ${data.topic || 'Unknown'}\nTrend Catchers: ${data.trend_catchers?.length || 0}`, 'PYTHON PIPELINE RESULTS');
 
@@ -217,17 +229,26 @@ async function viewPythonResult(sessionId: string) {
       data.trend_catchers.forEach((tc: any, i: number) => {
         if (i > 0) console.log(pc.cyan('├' + '─'.repeat(78)));
         console.log(`│ ${pc.bgGreen(pc.black(` #${i + 1} `))} ${pc.bold(pc.green(tc.trend))}`);
-        console.log(`│ ${pc.gray('├─')} ${pc.bold('Platform:')} ${pc.yellow(tc.platform.padEnd(10))} ${pc.gray('|')}  ${pc.bold('Status:')} ${pc.magenta(tc.status)}`);
-        console.log(`│ ${pc.gray('├─')} ${pc.bold('Format:')}   ${pc.cyan(tc.format)}`);
-        console.log(`│ ${pc.gray('├─')} ${pc.bold('Angle:')}    ${pc.white(tc.angle)}`);
+        console.log(`│ ${pc.gray('├─')} ${pc.bold('Type:')}       ${pc.magenta(tc.trend_type || 'mainstream').padEnd(14)} ${pc.gray('|')}  ${pc.bold('Confidence:')} ${pc.yellow(tc.confidence || 'medium')}`);
+        console.log(`│ ${pc.gray('├─')} ${pc.bold('Platform:')}   ${pc.yellow(tc.platform.padEnd(14))} ${pc.gray('|')}  ${pc.bold('Status:')}     ${pc.magenta(tc.status)}`);
+        console.log(`│ ${pc.gray('├─')} ${pc.bold('Format:')}     ${pc.cyan(tc.format)}`);
+        // Wrap angle nicely
+        const wrappedAngle = wrapAnsi(tc.angle || '', 60).split('\n');
+        wrappedAngle.forEach((line: string, lineIdx: number) => {
+          if (lineIdx === 0) {
+            console.log(`│ ${pc.gray('├─')} ${pc.bold('Angle:')}      ${pc.white(line)}`);
+          } else {
+            console.log(`│               ${pc.white(line)}`);
+          }
+        });
 
         // Wrap suggested content nicely
         const wrappedContent = wrapAnsi(tc.suggested_content || '', 60).split('\n');
         wrappedContent.forEach((line: string, lineIdx: number) => {
           if (lineIdx === 0) {
-            console.log(`│ ${pc.gray('└─')} ${pc.bold('Content:')}  ${pc.italic(line)}`);
+            console.log(`│ ${pc.gray('└─')} ${pc.bold('Content:')}    ${pc.italic(line)}`);
           } else {
-            console.log(`│             ${pc.italic(line)}`);
+            console.log(`│               ${pc.italic(line)}`);
           }
         });
       });
@@ -273,11 +294,90 @@ async function viewPythonResult(sessionId: string) {
         console.log(pc.gray('└' + '─'.repeat(78) + '\n'));
       }
     }
+
+    while (true) {
+      const choice = await p.select({
+        message: 'Python Pipeline Results Menu',
+        options: [
+          { value: 'view_trend_posts', label: 'View Posts for a Trend Catcher' },
+          { value: 'view_signal_posts', label: 'View Posts for a Signal' },
+          { value: 'back', label: pc.red('Back') }
+        ]
+      });
+
+      if (p.isCancel(choice) || choice === 'back') break;
+
+      if (choice === 'view_trend_posts' && data.trend_catchers) {
+        const tcChoice = await p.select({
+          message: 'Select a Trend Catcher to view posts:',
+          options: [
+            ...data.trend_catchers.map((tc: any, idx: number) => ({
+              value: tc,
+              label: `${idx + 1}. ${tc.trend} (${tc.evidence_ids?.length || 0} posts)`
+            })),
+            { value: 'cancel', label: pc.red('Cancel') }
+          ]
+        });
+        if (!p.isCancel(tcChoice) && tcChoice !== 'cancel') {
+          displayPosts((tcChoice as any).evidence_ids, data.posts_by_id);
+          await pause();
+        }
+      } else if (choice === 'view_signal_posts' && data.raw_analysis?.signals) {
+        const sigChoice = await p.select({
+          message: 'Select a Signal to view posts:',
+          options: [
+            ...data.raw_analysis.signals.map((sig: any, idx: number) => ({
+              value: sig,
+              label: `${idx + 1}. ${sig.summary || sig.signal_id} (${sig.evidence_ids?.length || 0} posts)`
+            })),
+            { value: 'cancel', label: pc.red('Cancel') }
+          ]
+        });
+        if (!p.isCancel(sigChoice) && sigChoice !== 'cancel') {
+          displayPosts((sigChoice as any).evidence_ids, data.posts_by_id);
+          await pause();
+        }
+      } else {
+        p.log.warn('No data available for this selection.');
+        await pause();
+      }
+    }
   } catch (err: any) {
     p.log.error(`Failed to parse or display python data: ${err.message}`);
+    await pause();
   }
+}
 
-  await pause();
+function displayPosts(evidenceIds: string[], postsById: any) {
+  if (!evidenceIds || evidenceIds.length === 0) {
+    p.log.warn('No posts mapped to this item.');
+    return;
+  }
+  if (!postsById) {
+    p.log.warn('Post data was not saved in this session (missing posts_by_id).');
+    return;
+  }
+  const posts = evidenceIds.map(id => postsById[id]).filter(p => !!p);
+  if (posts.length === 0) {
+    p.log.warn('Could not find corresponding posts data.');
+    return;
+  }
+  console.clear();
+  console.log(pc.cyan(`\nFound ${posts.length} posts:\n`));
+  posts.forEach((p: any, idx: number) => {
+    console.log(pc.bold(pc.yellow(`[Post ${idx + 1}] Source: ${p.source?.toUpperCase() || 'UNKNOWN'}`)));
+    console.log(`URL: ${pc.blue(p.url || 'N/A')}`);
+    console.log(`Score/Views: ${p.score} | Comments: ${p.num_comments}`);
+
+    let textToDisplay = p.text || '';
+    if (textToDisplay.length > 200) {
+      textToDisplay = textToDisplay.substring(0, 200) + '...';
+    }
+
+    const wrappedText = wrapAnsi(textToDisplay, 80).split('\n');
+    wrappedText.forEach((line: string) => console.log(`  ${pc.gray(line)}`));
+    console.log();
+  });
 }
 
 async function manageSession(session: Session) {
@@ -286,9 +386,9 @@ async function manageSession(session: Session) {
     const choice = await p.select({
       message: `Session Menu: "${session.query}" (${date})`,
       options: [
-        { value: 'summary', label: 'View Summary (Intent, Expansion & Collection Stats)' },
-        { value: 'deepdive', label: 'Deep Dive into Collected Data' },
-        { value: 'python', label: 'View Python Pipeline Result' },
+        { value: 'summary', label: 'View Summary (Stats)' },
+        { value: 'deepdive', label: 'Deep Dive Collected Data' },
+        { value: 'python', label: 'View Trend Catchers (Final Result)' },
         { value: 'resume', label: 'Resume Pipeline' },
         { value: 'delete', label: pc.red('Delete Session') },
         { value: 'back', label: 'Back to Sessions List' },
@@ -306,17 +406,23 @@ async function manageSession(session: Session) {
       await viewPythonResult(session.id);
     } else if (choice === 'resume') {
       p.log.info('--- Resume Pipeline ---');
-      const stages = ['intent', 'expansion', 'collection', 'python'];
+      const stageOptions = [
+        { value: 'intent', label: 'Intent Analysis' },
+        { value: 'expansion', label: 'Topic Expansion' },
+        { value: 'collection', label: 'Data Collection' },
+        { value: 'python', label: 'Python Pipeline' }
+      ];
+
       const startStageInput = await p.select({
         message: 'Start stage',
-        options: stages.map(s => ({ value: s, label: s })),
+        options: stageOptions,
         initialValue: 'intent'
       });
       if (p.isCancel(startStageInput)) continue;
 
       const endStageInput = await p.select({
         message: 'End stage',
-        options: stages.map(s => ({ value: s, label: s })),
+        options: stageOptions,
         initialValue: 'python'
       });
       if (p.isCancel(endStageInput)) continue;
@@ -344,19 +450,20 @@ async function manageSession(session: Session) {
           endStage: endStageInput as any,
           pythonStartStage: pythonStart,
           pythonEndStage: pythonEnd,
-          topK: 5,
+          topK: 10,
           reddit: { limit: 10, sort: 'relevance', time: 'month' },
           youtube: {
             limit: 10,
             region: 'US',
             filters: [
-              { category: 'uploadDate', label: 'This month' },
-              { category: 'features', label: 'HD' }
+              { category: 'uploadDate', label: 'This year' },
+              { category: 'type', label: 'Video' }
             ]
           },
           hackerNews: {
             limit: 10,
-            sort: 'relevance',
+            minPoints: 2,
+            after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           },
         });
         s.stop(pc.green('Pipeline resumed successfully.'));
@@ -417,7 +524,73 @@ async function viewSessionsMenu(user: User) {
   }
 }
 
+async function upgradeMenu() {
+  console.clear();
+  p.intro(pc.bgBlue(pc.black(' ⬆ UPGRADE MANAGER ')));
+  const manager = new UpgradeManager();
+  const s = p.spinner();
+
+  s.start('Checking for updates...');
+  let updateResult;
+  try {
+    updateResult = await manager.checkForUpdate();
+  } catch (err: any) {
+    s.stop(pc.red(`Failed to check for updates: ${err.message}`));
+    await pause();
+    return;
+  }
+  s.stop('Update check complete.');
+
+  if (!updateResult.updateAvailable) {
+    p.log.success(`You are running the latest version: v${updateResult.currentVersion}`);
+    await pause();
+    return;
+  }
+
+  p.log.info(`Update available! v${updateResult.currentVersion} ➔ v${updateResult.latestVersion}`);
+  if (updateResult.releaseInfo?.changelog) {
+    p.note(updateResult.releaseInfo.changelog, 'Changelog');
+  }
+
+  const confirmUpdate = await p.confirm({
+    message: 'Do you want to download and install this update now?',
+    initialValue: true,
+  });
+
+  if (p.isCancel(confirmUpdate) || !confirmUpdate) return;
+
+  const downloadSpinner = p.spinner();
+  downloadSpinner.start('Downloading update...');
+
+  let archivePath = '';
+  try {
+    if (updateResult.releaseInfo) {
+      archivePath = await manager.downloadFullRelease(updateResult.releaseInfo);
+    }
+    downloadSpinner.stop(pc.green('Download complete.'));
+  } catch (err: any) {
+    downloadSpinner.stop(pc.red(`Download failed: ${err.message}`));
+    await pause();
+    return;
+  }
+
+  const installSpinner = p.spinner();
+  installSpinner.start('Applying update and running post-install hooks (this may take a minute)...');
+  try {
+    await manager.applyUpdate(archivePath, updateResult.latestVersion);
+    installSpinner.stop(pc.green(`Successfully updated to v${updateResult.latestVersion}!`));
+    p.log.info('Please restart the application to use the new version.');
+    process.exit(0);
+  } catch (err: any) {
+    installSpinner.stop(pc.red(`Update failed: ${err.message}`));
+    p.log.warn('The system automatically rolled back to the previous version.');
+    await pause();
+  }
+}
+
+
 async function main() {
+  UpgradeManager.recoverIfInterrupted();
   console.clear();
   console.log(pc.magenta(banner));
   // p.intro(`${pc.bgCyan(pc.black(' TRINITY TRENDS '))} A Pretty Trends Analyzer`);
@@ -460,10 +633,11 @@ async function main() {
 
   while (true) {
     const choice = await p.select({
-      message: 'MAIN MENU',
+      message: `MAIN MENU ${pc.dim(`(v${getCurrentVersion()})`)}`,
       options: [
         { value: 'new', label: 'Run New Search Pipeline' },
         { value: 'past', label: 'View Past Sessions' },
+        { value: 'upgrade', label: 'Check for Updates' },
         { value: 'exit', label: 'Exit' },
       ],
     });
@@ -481,17 +655,23 @@ async function main() {
       });
       if (p.isCancel(query)) continue;
 
-      const stages = ['intent', 'expansion', 'collection', 'python'];
+      const stageOptions = [
+        { value: 'intent', label: 'Intent Analysis' },
+        { value: 'expansion', label: 'Topic Expansion' },
+        { value: 'collection', label: 'Data Collection' },
+        { value: 'python', label: 'Python Pipeline' }
+      ];
+
       const startStageInput = await p.select({
         message: 'Start stage',
-        options: stages.map(s => ({ value: s, label: s })),
+        options: stageOptions,
         initialValue: 'intent'
       });
       if (p.isCancel(startStageInput)) continue;
 
       const endStageInput = await p.select({
         message: 'End stage',
-        options: stages.map(s => ({ value: s, label: s })),
+        options: stageOptions,
         initialValue: 'python'
       });
       if (p.isCancel(endStageInput)) continue;
@@ -518,19 +698,20 @@ async function main() {
           endStage: endStageInput as any,
           pythonStartStage: pythonStart,
           pythonEndStage: pythonEnd,
-          topK: 5,
+          topK: 10,
           reddit: { limit: 10, sort: 'relevance', time: 'month' },
           youtube: {
             limit: 10,
             region: 'US',
             filters: [
-              { category: 'uploadDate', label: 'This month' }
-
+              { category: 'uploadDate', label: 'This year' },
+              { category: 'type', label: 'Video' }
             ]
           },
           hackerNews: {
             limit: 10,
-            sort: 'relevance',
+            minPoints: 2,
+            after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           },
         });
 
@@ -545,6 +726,8 @@ async function main() {
       }
     } else if (choice === 'past') {
       await viewSessionsMenu(user);
+    } else if (choice === 'upgrade') {
+      await upgradeMenu();
     }
   }
 }

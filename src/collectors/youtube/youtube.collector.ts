@@ -41,7 +41,7 @@ export class YouTubeCollector {
   constructor(
     private readonly client: YouTubeClientLike = new YouTubeClient(),
     private readonly parser: YouTubeParserLike = new YouTubeParser(),
-  ) {}
+  ) { }
 
   async search(req: YouTubeSearchRequest): Promise<YouTubeSearchPage> {
     const html = await this.client.search(req);
@@ -125,3 +125,5 @@ export class YouTubeCollector {
     return this.parser.parseContinuation(data);
   }
 }
+
+

@@ -60,7 +60,7 @@ def cluster(
         cluster_selection_method="eom",
         # 0.15 is the "gravity" setting to pull noise into nearby clusters.
         # If clusters look too merged, reduce to 0.10.
-        cluster_selection_epsilon=0.15, 
+        cluster_selection_epsilon=config.CLUSTER_EPSILON, 
     )
 
     labels = clusterer.fit_predict(normed_embeddings)

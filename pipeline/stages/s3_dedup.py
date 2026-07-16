@@ -72,7 +72,7 @@ def _mmr_select(
 def dedup_and_diversify(
     items: list[ScoredItem],
     embeddings: np.ndarray,
-    similarity_threshold: float = 0.95
+    similarity_threshold: float = config.DEDUP_SIMILARITY_THRESHOLD
 ) -> tuple[list[ScoredItem], np.ndarray]:
     """
     Stage 3 entry point.

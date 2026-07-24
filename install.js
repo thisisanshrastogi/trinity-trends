@@ -56,7 +56,7 @@ async function main() {
   ];
 
   for (const { key, msg } of envVars) {
-    if (!envContent.includes(`${key}=`) || envContent.match(new RegExp(`${key}=\\s*(your_.*)?$`))) {
+    if (!envContent.includes(`${key}=`) || envContent.match(new RegExp(`^${key}=\\s*(your_.*)?$`, 'm'))) {
       console.log(`\n[!] ${key} is missing or default.`);
       const val = await ask(`${msg} (or press Enter to skip): `);
       if (val.trim()) {

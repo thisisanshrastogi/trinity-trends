@@ -13,12 +13,13 @@ import { RunPipeline } from './ui/views/RunPipeline.js';
 import { TranscriptTool } from './ui/views/TranscriptTool.js';
 import { PastSessions } from './ui/views/PastSessions.js';
 import { Settings } from './ui/views/Settings.js';
+import { UpdateTool } from './ui/views/UpdateTool.js';
 
 const repo = new SqliteRepository();
 
 const App = () => {
   const { exit } = useApp();
-  const [view, setView] = useState<'login' | 'register' | 'menu' | 'new' | 'config' | 'past' | 'transcript'>('login');
+  const [view, setView] = useState<'login' | 'register' | 'menu' | 'new' | 'config' | 'past' | 'transcript' | 'update'>('login');
   
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -114,6 +115,10 @@ const App = () => {
 
       {view === 'config' && (
         <Settings onBack={() => setView('menu')} />
+      )}
+
+      {view === 'update' && (
+        <UpdateTool onBack={() => setView('menu')} />
       )}
     </Box>
   );

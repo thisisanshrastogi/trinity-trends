@@ -19,6 +19,7 @@ export const MainMenu: React.FC<MenuProps> = ({ onSelect, version }) => {
     { label: pc.cyan('⚙ Edit Configuration'), value: 'config' },
     { label: pc.yellow('◷ View Past Sessions'), value: 'past' },
     { label: pc.magenta('☊ Transcript Tool (Download & Transcribe)'), value: 'transcript' },
+    { label: pc.blue('⬆ Check for Updates'), value: 'update' },
     { label: pc.red('✖ Exit'), value: 'exit' },
   ];
 

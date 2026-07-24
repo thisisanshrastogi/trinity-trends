@@ -153,8 +153,9 @@ export class UpgradeManager {
         sourceDir = path.join(extractDir, entries[0]);
       }
 
-      // Step 3: Replace files
-      const filesToUpdate = ['dist', 'pipeline', 'ig_scraper', 'package.json', 'package-lock.json', 'install.js', 'uninstall.js'];
+      // Step 3: Replace files dynamically to avoid missing new top-level directories
+      const excludeFromUpdate = ['.git', 'node_modules', '.venv', '__pycache__', '.upgrade_backup', '.upgrade_downloads', '.ig_profile', 'data', 'output', '.env'];
+      const filesToUpdate = fs.readdirSync(sourceDir).filter(f => !excludeFromUpdate.includes(f));
 
       for (const item of filesToUpdate) {
         const srcItem = path.join(sourceDir, item);
@@ -367,7 +368,8 @@ export class UpgradeManager {
     fs.rmSync(this.backupDir, { recursive: true, force: true });
     fs.mkdirSync(this.backupDir, { recursive: true });
 
-    const itemsToBackup = ['dist', 'pipeline', 'ig_scraper', 'package.json', 'package-lock.json', 'install.js', 'uninstall.js'];
+    const excludeFromBackup = ['.git', 'node_modules', '.venv', '__pycache__', '.upgrade_backup', '.upgrade_downloads', '.ig_profile', 'data', 'output', '.env'];
+    const itemsToBackup = fs.readdirSync(this.projectRoot).filter(f => !excludeFromBackup.includes(f));
 
     for (const item of itemsToBackup) {
       const src = path.join(this.projectRoot, item);

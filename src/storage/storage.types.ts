@@ -4,7 +4,7 @@ import { IntentAnalysis, ExpansionResult } from '../intent/intent.types.js';
 //  Enums
 // ──────────────────────────────────────────────
 
-export type Platform = 'reddit' | 'youtube' | 'googleTrends' | 'hackerNews';
+export type Platform = 'reddit' | 'youtube' | 'googleTrends' | 'hackerNews' | 'instagram';
 
 export type PipelineStage =
   | 'intent_analysis'

@@ -30,6 +30,7 @@ from pipeline.models import (
     RedditPost,
     YouTubeVideo,
     HackerNewsPost,
+    InstagramPost,
     NormalizedItem,
 )
 from pipeline import config
@@ -319,6 +320,36 @@ def _normalize_hackernews(post: HackerNewsPost, query: str) -> NormalizedItem | 
     )
 
 
+def _normalize_instagram(post: InstagramPost, query: str) -> NormalizedItem | None:
+    """Convert an Instagram post to a NormalizedItem, or None if junk."""
+    clean_caption = _clean_text(post.caption) if post.caption else ""
+    clean_transcript = _clean_text(post.transcript) if post.transcript else ""
+    
+    text = f"{clean_caption}. {clean_transcript}".strip()
+
+    if len(text.split()) < config.MIN_WORD_COUNT:
+        return None
+    if not _is_english(text):
+        return None
+
+    created_at = _parse_datetime(post.taken_at)
+    engagement = _calculate_engagement("instagram", post.like_count, post.comment_count, created_at)
+
+    return NormalizedItem(
+        id=f"instagram_{post.pk}",
+        source="instagram",
+        query=query,
+        text=text,
+        title=clean_caption[:100] + ("..." if len(clean_caption) > 100 else ""),
+        author=post.username or post.full_name,
+        score=post.like_count,
+        num_comments=post.comment_count,
+        created_at=created_at.isoformat(),
+        url=post.url,
+        engagement=engagement,
+    )
+
+
 def normalize(data: CollectionScored) -> list[NormalizedItem]:
     """
     Stage 0 entry point.
@@ -349,6 +380,13 @@ def normalize(data: CollectionScored) -> list[NormalizedItem]:
         # Hacker News
         for hn_post in result.hackerNews:
             item = _normalize_hackernews(hn_post, query)
+            if item and item.id not in seen_ids:
+                seen_ids.add(item.id)
+                items.append(item)
+
+        # Instagram
+        for ig_post in result.instagram:
+            item = _normalize_instagram(ig_post, query)
             if item and item.id not in seen_ids:
                 seen_ids.add(item.id)
                 items.append(item)

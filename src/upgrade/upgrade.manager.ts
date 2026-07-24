@@ -154,7 +154,7 @@ export class UpgradeManager {
       }
 
       // Step 3: Replace files
-      const filesToUpdate = ['dist', 'pipeline', 'package.json', 'package-lock.json', 'install.js', 'uninstall.js'];
+      const filesToUpdate = ['dist', 'pipeline', 'ig_scraper', 'package.json', 'package-lock.json', 'install.js', 'uninstall.js'];
 
       for (const item of filesToUpdate) {
         const srcItem = path.join(sourceDir, item);
@@ -367,7 +367,7 @@ export class UpgradeManager {
     fs.rmSync(this.backupDir, { recursive: true, force: true });
     fs.mkdirSync(this.backupDir, { recursive: true });
 
-    const itemsToBackup = ['dist', 'pipeline', 'package.json', 'package-lock.json', 'install.js', 'uninstall.js'];
+    const itemsToBackup = ['dist', 'pipeline', 'ig_scraper', 'package.json', 'package-lock.json', 'install.js', 'uninstall.js'];
 
     for (const item of itemsToBackup) {
       const src = path.join(this.projectRoot, item);
@@ -427,6 +427,49 @@ export class UpgradeManager {
           });
         }
       }
+
+      // 2b. Reinstall ig_scraper Python deps
+      const igScraperDir = path.join(this.projectRoot, 'ig_scraper');
+      const igVenvDir = path.join(igScraperDir, '.venv');
+
+      if (fs.existsSync(igScraperDir)) {
+        if (!fs.existsSync(igVenvDir)) {
+          console.log('[INFO] Creating ig_scraper Python virtual environment...');
+          execSync('python3 -m venv .venv', {
+            cwd: igScraperDir,
+            stdio: 'pipe',
+            timeout: 60000,
+          });
+        }
+
+        const isWin = process.platform === 'win32';
+        const igPipCmd = isWin
+          ? path.join(igVenvDir, 'Scripts', 'pip')
+          : path.join(igVenvDir, 'bin', 'pip');
+
+        if (fs.existsSync(path.join(igScraperDir, 'requirements.txt'))) {
+          console.log('[INFO] Installing ig_scraper Python dependencies...');
+          execSync(`"${igPipCmd}" install -r requirements.txt`, {
+            cwd: igScraperDir,
+            stdio: 'pipe',
+            timeout: 120000,
+          });
+          
+          const igPythonCmd = isWin
+            ? path.join(igVenvDir, 'Scripts', 'python')
+            : path.join(igVenvDir, 'bin', 'python');
+
+          try {
+             console.log('[INFO] Installing Playwright Chromium browser...');
+             execSync(`"${igPythonCmd}" -m playwright install chromium`, {
+                cwd: igScraperDir,
+                stdio: 'pipe',
+                timeout: 120000,
+             });
+          } catch(e) {}
+        }
+      }
+
     } catch (err: any) {
       console.warn(`[WARN] Python deps reinstall failed: ${err.message}`);
     }

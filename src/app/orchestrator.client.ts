@@ -16,6 +16,7 @@ import { FilterSelection } from '../collectors/youtube/youtube.filters.js';
 import { GoogleTrendsMethod, GoogleTrendsResolution } from '../collectors/googleTrends/googleTrends.types.js';
 import { HackerNewsCollector } from '../collectors/hackerNews/hackerNews.collector.js';
 import { HackerNewsTag } from '../collectors/hackerNews/hackerNews.types.js';
+import { InstagramCollector } from '../collectors/instagram/instagram.collector.js';
 import { Tracer, TraceEvent } from '../common/llm/llm.trace.js';
 
 export type PipelineStage = 'intent' | 'expansion' | 'collection' | 'python';
@@ -90,6 +91,10 @@ export interface PipelineCollectionOptions {
     exactMatch?: boolean;
     attributesToSearch?: ("title" | "story_text" | "comment_text")[];
   };
+  instagram?: {
+    limit?: number;
+    searchType?: "keyword" | "hashtag";
+  };
 }
 
 export class OrchestratorClient {
@@ -116,6 +121,7 @@ export class OrchestratorClient {
   private youtubeCollector = new YouTubeCollector();
   private googleTrendsCollector = new GoogleTrendsCollector();
   private hackerNewsCollector = new HackerNewsCollector();
+  private instagramCollector = new InstagramCollector();
 
   /**
    * Run the full data collection pipeline.
@@ -241,13 +247,18 @@ export class OrchestratorClient {
             scoredExpansion = JSON.parse(dbExpansion.resultJson);
           }
         }
+        if (!intentResult) {
+          const dbIntent = this.repo.getIntentResult(session.id);
+          if (dbIntent) {
+            intentResult = JSON.parse(dbIntent.resultJson);
+          }
+        }
 
         if (scoredExpansion) {
           // Get top K candidates sorted by score
           const candidatesToCollect = scoredExpansion.candidates.slice(0, topK);
 
-          for (let i = 0; i < candidatesToCollect.length; i++) {
-            const candidate = candidatesToCollect[i];
+          const candidatePromises = candidatesToCollect.map(async (candidate: any, i: number) => {
             log(`Collecting topic ${i + 1}/${candidatesToCollect.length}: "${candidate.query}"`);
 
             // Upsert candidate as a topic
@@ -256,7 +267,7 @@ export class OrchestratorClient {
               sessionId: session.id,
               source: 'expansion'
             });
-            
+
             const results = await Promise.allSettled([
               this.redditCollector.collect({
                 query: candidate.query,
@@ -333,35 +344,42 @@ export class OrchestratorClient {
             } else {
               log(`Hacker News collection failed: ${hnResult.reason}`);
             }
+          });
 
-            // // Google Trends
-            // try {
-            //   console.log(`  -> Collecting from Google Trends...`);
-            //   const trendsData = await this.googleTrendsCollector.collect({ 
-            //     keyword: [candidate.query], 
-            //     methods: options?.googleTrends?.methods ?? ["interestOverTime", "relatedQueries"], 
-            //     geo: options?.googleTrends?.geo ?? "US",
-            //     hl: options?.googleTrends?.hl,
-            //     timezone: options?.googleTrends?.timezone,
-            //     category: options?.googleTrends?.category,
-            //     startTime: options?.googleTrends?.startTime,
-            //     endTime: options?.googleTrends?.endTime,
-            //     resolution: options?.googleTrends?.resolution,
-            //     trendDate: options?.googleTrends?.trendDate
-            //   });
-            //   this.repo.saveCollectorResult({
-            //     topicId: topic.id,
-            //     sessionId: session.id,
-            //     platform: 'googleTrends',
-            //     query: candidate.query,
-            //     resultJson: JSON.stringify(trendsData),
-            //     resultCount: trendsData.length
-            //   });
-            //   console.log(`  -> Google Trends: completed.`);
-            // } catch (err: any) {
-            //   console.error(`  -> Google Trends collection failed: ${err.message}`);
-            // }
-          }
+          const intentTopics = intentResult?.topics || [];
+          const intentPromiseChain = (async () => {
+            for (let i = 0; i < intentTopics.length; i++) {
+              const topicText = intentTopics[i];
+              log(`Collecting Instagram topic ${i + 1}/${intentTopics.length}: "${topicText}"`);
+
+              const topic = this.repo.upsertTopic({
+                text: topicText,
+                sessionId: session.id,
+                source: 'intent'
+              });
+
+              try {
+                const igResult = await this.instagramCollector.collect({
+                  query: topicText,
+                  limit: options?.instagram?.limit ?? 10,
+                  searchType: options?.instagram?.searchType ?? "keyword"
+                });
+                this.repo.saveCollectorResult({
+                  topicId: topic.id,
+                  sessionId: session.id,
+                  platform: 'instagram',
+                  query: topicText,
+                  resultJson: JSON.stringify(igResult),
+                  resultCount: igResult.length
+                });
+                log(`Instagram: ${igResult.length} items`);
+              } catch (err: any) {
+                log(`Instagram collection failed: ${err.message}`);
+              }
+            }
+          })();
+
+          await Promise.all([...candidatePromises, intentPromiseChain]);
 
           this.repo.updatePipelineRun(collectionRun.id, {
             status: 'completed',
@@ -414,7 +432,7 @@ export class OrchestratorClient {
     const resultsMap = new Map<string, any>();
     for (const res of collectorResults) {
       if (!resultsMap.has(res.query)) {
-        resultsMap.set(res.query, { query: res.query, candidateSource: 'db', errors: {}, reddit: [], youtube: [], googleTrends: [], hackerNews: [] });
+        resultsMap.set(res.query, { query: res.query, candidateSource: 'db', errors: {}, reddit: [], youtube: [], googleTrends: [], hackerNews: [], instagram: [] });
       }
       const entry = resultsMap.get(res.query);
       const data = JSON.parse(res.resultJson);
@@ -423,6 +441,7 @@ export class OrchestratorClient {
       else if (res.platform === 'youtube') entry.youtube = data;
       else if (res.platform === 'googleTrends') entry.googleTrends = data;
       else if (res.platform === 'hackerNews') entry.hackerNews = data;
+      else if (res.platform === 'instagram') entry.instagram = data;
     }
 
     const finalOutput = {
@@ -472,7 +491,7 @@ export class OrchestratorClient {
           '--start-stage', startStage.toString(),
           '--end-stage', endStage.toString(),
           '--state-file', absoluteStateFile
-        ], { 
+        ], {
           cwd: installRoot,
           env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
         });

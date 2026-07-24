@@ -1,0 +1,14 @@
+{
+  "hashtags": [
+    "creditcardoffers"
+  ],
+  "posts_per_hashtag": 50,
+  "headless": false,
+  "scroll_pause_seconds": 2,
+  "hashtag_delay_min_seconds": 4,
+  "hashtag_delay_max_seconds": 10,
+  "agent_browser_on_challenge": true,
+  "challenge_timeout_seconds": 300,
+  "agent_browser_max_steps": 25,
+  "proxy": null
+}

@@ -7,6 +7,8 @@ export interface GeminiCallerConfig {
   model: string;
   defaultTemperature?: number;
   defaultMaxTokens?: number;
+  defaultThinkingLevel?: 'low' | 'high';
+  defaultThinkingBudget?: number;
   timeoutMs?: number;
   tracer?: Tracer;
   scope?: string; // e.g. "gemini:intent"
@@ -42,13 +44,26 @@ export class GeminiCaller implements LLMCaller {
         parts: [{ text: m.content }],
       }));
 
+    const isGemini3 = /^gemini-3/.test(this.cfg.model);
+    const thinkingConfig: Record<string, unknown> = {};
+
+    if (isGemini3) {
+      const level = options.thinkingLevel ?? this.cfg.defaultThinkingLevel;
+      if (level) thinkingConfig["thinkingLevel"] = level.toUpperCase();
+      // omit entirely to fall back to the model's default (HIGH)
+    } else {
+      const budget = options.thinkingBudget ?? this.cfg.defaultThinkingBudget ?? 0;
+      thinkingConfig["thinkingBudget"] = budget; // 0 = off, -1 = dynamic
+    }
+    if (options.includeThoughts) thinkingConfig["includeThoughts"] = true;
+
     const config: Record<string, unknown> = {
       temperature: options.temperature ?? this.cfg.defaultTemperature ?? 0.7,
       maxOutputTokens: options.maxTokens ?? this.cfg.defaultMaxTokens ?? 1024,
       // gemini-2.5-flash has thinking ON by default; thinking tokens are billed
       // against maxOutputTokens and truncate/stall the JSON. Disable for these
       // structured extraction calls. (Ignored by 3.x models, which can't disable it.)
-      thinkingConfig: { thinkingBudget: 0 },
+      thinkingConfig,
     };
 
     if (systemText) config["systemInstruction"] = systemText;

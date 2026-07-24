@@ -9,17 +9,35 @@ loadGlobalEnv();
 
 export interface GeminiFactoryConfig {
   apiKey?: string;
-  models?: Record<string, { model?: string; temperature?: number }>;
+  models?: Record<string, {
+    model?: string;
+    temperature?: number;
+    thinkingLevel?: 'low' | 'high';
+    thinkingBudget?: number;
+    maxTokens?: number;
+  }>;
   tracer?: Tracer;
 }
 
 const DEFAULTS = { model: "gemini-3.1-flash-lite", temperature: 0.7 };
 const PURPOSE_DEFAULTS: Record<
   string,
-  { model?: string; temperature?: number }
+  {
+    model?: string;
+    temperature?: number;
+    thinkingLevel?: 'low' | 'high';
+    thinkingBudget?: number;
+    maxTokens?: number;
+  }
 > = {
   intent: { temperature: 0 },
-  expansion: { temperature: 0.4 },
+  expansion: { temperature: 0.4 }, // stays cheap/fast, thinking off
+  "query-expansion": {
+    model: "gemini-3.5-flash",
+    temperature: 0.7,
+    thinkingLevel: "high",
+    maxTokens: 2048, // thinking tokens count against this budget
+  },
 };
 
 export class GeminiFactory implements LLMFactory {
@@ -27,8 +45,8 @@ export class GeminiFactory implements LLMFactory {
   private readonly cache = new Map<string, LLMCaller>();
 
   constructor(private readonly cfg: GeminiFactoryConfig = {}) {
-    this.ai = new GoogleGenAI({ 
-      apiKey: cfg.apiKey || process.env.GEMINI_API_KEY 
+    this.ai = new GoogleGenAI({
+      apiKey: cfg.apiKey || process.env.GEMINI_API_KEY
     });
   }
 
@@ -42,10 +60,10 @@ export class GeminiFactory implements LLMFactory {
     const caller = new GeminiCaller({
       ai: this.ai,
       model: override.model ?? purposeDefault.model ?? DEFAULTS.model,
-      defaultTemperature:
-        override.temperature ??
-        purposeDefault.temperature ??
-        DEFAULTS.temperature,
+      defaultTemperature: override.temperature ?? purposeDefault.temperature ?? DEFAULTS.temperature,
+      defaultMaxTokens: override.maxTokens ?? purposeDefault.maxTokens,
+      defaultThinkingLevel: override.thinkingLevel ?? purposeDefault.thinkingLevel,
+      defaultThinkingBudget: override.thinkingBudget ?? purposeDefault.thinkingBudget,
       tracer: this.cfg.tracer,
       scope: `gemini:${purpose}`,
     });

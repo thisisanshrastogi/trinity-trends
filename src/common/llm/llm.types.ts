@@ -10,6 +10,9 @@ export interface LLMCallOptions {
   schema?: Record<string, unknown>;
   temperature?: number;
   maxTokens?: number;
+  thinkingLevel?: 'low' | 'high';   // gemini-3.x
+  thinkingBudget?: number;          // gemini-2.5.x (-1 dynamic, 0 off, N tokens)
+  includeThoughts?: boolean;        // return thought summaries
 }
 
 export interface LLMCaller {

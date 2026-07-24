@@ -62,6 +62,26 @@ class HackerNewsPost(BaseModel):
     rank: int = 0
 
 
+class InstagramPost(BaseModel):
+    pk: str = ""
+    code: str = ""
+    media_type: int = 0
+    username: str = ""
+    full_name: str = ""
+    is_verified: bool = False
+    width: int = 0
+    height: int = 0
+    caption: str = ""
+    like_count: int = 0
+    comment_count: int = 0
+    view_count: int = 0
+    taken_at: int = 0
+    engagement_velocity: float = 0.0
+    url: str = ""
+    rank: int = 0
+    transcript: str = ""
+
+
 class CollectionResult(BaseModel):
     query: str
     candidateSource: str = ""
@@ -70,6 +90,7 @@ class CollectionResult(BaseModel):
     youtube: list[YouTubeVideo] = Field(default_factory=list)
     googleTrends: list[GoogleTrendsEntry] = Field(default_factory=list)
     hackerNews: list[HackerNewsPost] = Field(default_factory=list)
+    instagram: list[InstagramPost] = Field(default_factory=list)
 
 
 class CollectionScored(BaseModel):

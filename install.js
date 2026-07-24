@@ -37,7 +37,7 @@ async function main() {
   console.log("[1/4] Configuring Environment...");
   const envPath = path.join(process.cwd(), '.env');
   const examplePath = path.join(process.cwd(), '.env.example');
-  
+
   if (!fs.existsSync(envPath)) {
     if (fs.existsSync(examplePath)) {
       fs.copyFileSync(examplePath, envPath);
@@ -70,20 +70,45 @@ async function main() {
   const pythonCmd = isWin ? "python" : "python3";
   const pipelineDir = path.join(process.cwd(), 'pipeline');
   const venvDir = path.join(pipelineDir, ".venv");
-  
+
   try {
     if (!fs.existsSync(venvDir)) {
       run(`${pythonCmd} -m venv "${venvDir}"`);
     }
     const pipCmd = isWin ? path.join(venvDir, "Scripts", "pip") : path.join(venvDir, "bin", "pip");
-    
+
     // Install depending on whether pyproject or requirements exists
     if (fs.existsSync(path.join(pipelineDir, 'pyproject.toml'))) {
       run(`"${pipCmd}" install -e .`, { cwd: pipelineDir });
     } else {
       run(`"${pipCmd}" install -r requirements.txt`, { cwd: pipelineDir });
     }
-    console.log("[OK] Python environment ready.");
+    console.log("[OK] Pipeline Python environment ready.");
+
+    const igScraperDir = path.join(process.cwd(), 'ig_scraper');
+    if (fs.existsSync(igScraperDir)) {
+      const igVenvDir = path.join(igScraperDir, ".venv");
+      if (!fs.existsSync(igVenvDir)) {
+        run(`${pythonCmd} -m venv "${igVenvDir}"`);
+      }
+      const igPipCmd = isWin ? path.join(igVenvDir, "Scripts", "pip") : path.join(igVenvDir, "bin", "pip");
+      const igPythonVenvCmd = isWin ? path.join(igVenvDir, "Scripts", "python") : path.join(igVenvDir, "bin", "python");
+
+      if (fs.existsSync(path.join(igScraperDir, 'requirements.txt'))) {
+        run(`"${igPipCmd}" install -r requirements.txt`, { cwd: igScraperDir });
+      }
+      if (fs.existsSync(path.join(igScraperDir, 'pyproject.toml'))) {
+        run(`"${igPipCmd}" install -e .`, { cwd: igScraperDir });
+      } else {
+        // Install playwright browsers if playwright is there
+        try {
+          console.log("[INFO] Installing Playwright Chromium browser...");
+          run(`"${igPythonVenvCmd}" -m playwright install chromium`, { cwd: igScraperDir });
+        } catch (e) { }
+      }
+      console.log("[OK] ig_scraper Python environment ready.");
+    }
+
   } catch (err) {
     console.error("[ERROR] Failed to setup Python environment. Do you have Python 3 installed?");
     process.exit(1);
@@ -104,13 +129,13 @@ async function main() {
   try {
     // If not built, build it first just in case
     if (!fs.existsSync(path.join('dist', 'src', 'app', 'cli.js'))) {
-        console.log("[*] Building TypeScript app...");
-        run("npm install");
-        run("npm run build");
-        
-        if (process.platform !== 'win32') {
-            run("chmod +x dist/src/app/cli.js");
-        }
+      console.log("[*] Building TypeScript app...");
+      run("npm install");
+      run("npm run build");
+
+      if (process.platform !== 'win32') {
+        run("chmod +x dist/src/app/cli.js");
+      }
     }
 
     // `npm link` handles global symlinking cross-platform (creating .cmd files for Windows)

@@ -415,4 +415,24 @@ export class SqliteRepository implements SqliteRepositoryLike {
        ORDER BY created_at ASC`, sessionId
     );
   }
+
+  // ──────────────────────────────────────────
+  //  Transcripts
+  // ──────────────────────────────────────────
+
+  saveTranscript(url: string, transcript: string): string {
+    const id = randomUUID();
+    const createdAt = this.now();
+    this.client.run(
+      `INSERT INTO transcripts (id, url, transcript, created_at) VALUES (?, ?, ?, ?)`,
+      id, url, transcript, createdAt
+    );
+    return id;
+  }
+
+  getTranscripts(): { id: string; url: string; transcript: string; created_at: number }[] {
+    return this.client.all(
+      `SELECT id, url, transcript, created_at FROM transcripts ORDER BY created_at DESC`
+    );
+  }
 }

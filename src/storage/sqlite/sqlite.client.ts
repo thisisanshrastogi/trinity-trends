@@ -38,7 +38,7 @@ export class SqliteClient implements SqliteClientLike {
     this.db.pragma('foreign_keys = ON');
 
     this.migrate();
-    console.log(`[SqliteClient] Database initialized at ${this.dbPath}`);
+    // console.log(`[SqliteClient] Database initialized at ${this.dbPath}`);
   }
 
   close(): void {
@@ -181,6 +181,14 @@ export class SqliteClient implements SqliteClientLike {
         total_tokens    INTEGER NOT NULL,
         created_at      INTEGER NOT NULL,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+      )`,
+
+      // ── Transcripts ──
+      `CREATE TABLE IF NOT EXISTS transcripts (
+        id          TEXT PRIMARY KEY,
+        url         TEXT NOT NULL,
+        transcript  TEXT NOT NULL,
+        created_at  INTEGER NOT NULL
       )`,
 
       // ── Indexes ──

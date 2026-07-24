@@ -63,3 +63,20 @@ Thumbs.db
 dist_release/*
 .upgrade_*/
 .upgrade_in_progress
+
+# Instagram Scraper (ig_scraper/)
+ig_scraper/.venv/
+ig_scraper/__pycache__/
+ig_scraper/instagram_state.json
+ig_scraper/instagram_results.json
+ig_scraper/.env
+
+# Instagram Test/Generated Files
+ig_html.txt
+ig_screenshot.png
+ig_session.json
+instagram_test_output.json
+raw_ig_response.json
+trawl_result.json
+test_results.json
+.ig_profile/

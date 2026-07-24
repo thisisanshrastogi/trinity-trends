@@ -21,6 +21,8 @@ fs.rmSync('dist', { recursive: true, force: true });
 fs.rmSync('dist_release', { recursive: true, force: true });
 fs.rmSync(path.join('pipeline', '.venv'), { recursive: true, force: true });
 fs.rmSync(path.join('pipeline', '__pycache__'), { recursive: true, force: true });
+fs.rmSync(path.join('ig_scraper', '.venv'), { recursive: true, force: true });
+fs.rmSync(path.join('ig_scraper', '__pycache__'), { recursive: true, force: true });
 
 // 2. Build TypeScript
 console.log("\n[2/5] Compiling TypeScript...");
@@ -34,6 +36,7 @@ if (process.platform !== 'win32') {
 console.log("\n[3/5] Preparing distribution package...");
 fs.mkdirSync(path.join(DIST_DIR, "scripts"), { recursive: true });
 fs.mkdirSync(path.join(DIST_DIR, "pipeline"), { recursive: true });
+fs.mkdirSync(path.join(DIST_DIR, "ig_scraper"), { recursive: true });
 
 // 4. Copy necessary files (simple recursive copy function)
 function copyRecursiveSync(src, dest) {
@@ -41,8 +44,8 @@ function copyRecursiveSync(src, dest) {
   if (stats && stats.isDirectory()) {
     fs.mkdirSync(dest, { recursive: true });
     fs.readdirSync(src).forEach(childItemName => {
-      // Ignore __pycache__ and egg-info during copy
-      if (childItemName === '__pycache__' || childItemName.endsWith('.egg-info')) return;
+      // Ignore __pycache__, .venv, and egg-info during copy
+      if (childItemName === '__pycache__' || childItemName === '.venv' || childItemName.endsWith('.egg-info')) return;
       copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
     });
   } else if (stats) {
@@ -53,6 +56,9 @@ function copyRecursiveSync(src, dest) {
 console.log("[4/5] Copying files...");
 copyRecursiveSync('dist', path.join(DIST_DIR, 'dist'));
 copyRecursiveSync('pipeline', path.join(DIST_DIR, 'pipeline'));
+if (fs.existsSync('ig_scraper')) {
+  copyRecursiveSync('ig_scraper', path.join(DIST_DIR, 'ig_scraper'));
+}
 ['package.json', 'package-lock.json', '.env.example', 'install.js', 'uninstall.js'].forEach(file => {
   if (fs.existsSync(file)) fs.copyFileSync(file, path.join(DIST_DIR, file));
 });

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
+import SelectInput from 'ink-select-input';
 
 import { SqliteRepository } from '../storage/sqlite/sqlite.repository.js';
 import { User } from '../storage/storage.types.js';
@@ -13,13 +14,18 @@ import { RunPipeline } from './ui/views/RunPipeline.js';
 import { TranscriptTool } from './ui/views/TranscriptTool.js';
 import { PastSessions } from './ui/views/PastSessions.js';
 import { Settings } from './ui/views/Settings.js';
+import { SettingsMenu } from './ui/views/SettingsMenu.js';
+import { EnvConfig } from './ui/views/EnvConfig.js';
+import { PreflightCheck } from './ui/views/PreflightCheck.js';
 import { UpdateTool } from './ui/views/UpdateTool.js';
 
 const repo = new SqliteRepository();
 
 const App = () => {
   const { exit } = useApp();
-  const [view, setView] = useState<'login' | 'register' | 'menu' | 'new' | 'config' | 'past' | 'transcript' | 'update'>('login');
+  const [view, setView] = useState<'login' | 'register' | 'menu' | 'new' | 'config' | 'env' | 'settings_menu' | 'past' | 'transcript' | 'update'>('login');
+  const [preflightOk, setPreflightOk] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -27,8 +33,9 @@ const App = () => {
   const [pastSessionId, setPastSessionId] = useState<string | undefined>();
 
   useInput((input, key) => {
+    if (showExitConfirm && key.escape) setShowExitConfirm(false);
     if (key.escape && (view === 'login' || view === 'register')) exit();
-    if (key.ctrl && input === 'c') process.exit(0);
+    if (key.ctrl && input === 'c') setShowExitConfirm(true);
   });
 
   const handleLoginSubmit = () => {
@@ -48,6 +55,29 @@ const App = () => {
     setUser(newUser);
     setView('menu');
   };
+
+  if (showExitConfirm) {
+    return (
+      <Box flexDirection="column" padding={1} borderStyle="round" borderColor="red">
+        <Text color="red" bold>Are you sure you want to exit Trinity Trends?</Text>
+        <Box marginTop={1}>
+          <SelectInput 
+            items={[
+              { label: 'No, return to application', value: 'no' },
+              { label: 'Yes, exit immediately', value: 'yes' }
+            ]} 
+            onSelect={(item) => {
+              if (item.value === 'yes') {
+                process.exit(0);
+              } else {
+                setShowExitConfirm(false);
+              }
+            }} 
+          />
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -87,11 +117,22 @@ const App = () => {
         </Box>
       )}
 
-      {view === 'new' && user && (
+      {view === 'new' && user && !preflightOk && (
+        <PreflightCheck 
+          onSuccess={() => setPreflightOk(true)} 
+          onCancel={() => setView('menu')} 
+        />
+      )}
+
+      {view === 'new' && user && preflightOk && (
         <RunPipeline 
           user={user} 
-          onBack={() => setView('menu')} 
+          onBack={() => {
+            setPreflightOk(false);
+            setView('menu');
+          }} 
           onComplete={(sessionId) => {
+            setPreflightOk(false);
             setPastSessionId(sessionId);
             setView('past');
           }}
@@ -113,8 +154,19 @@ const App = () => {
         />
       )}
 
+      {view === 'settings_menu' && (
+        <SettingsMenu onSelect={(val) => {
+          if (val === 'back') setView('menu');
+          else setView(val as any);
+        }} />
+      )}
+
       {view === 'config' && (
-        <Settings onBack={() => setView('menu')} />
+        <Settings onBack={() => setView('settings_menu')} />
+      )}
+
+      {view === 'env' && (
+        <EnvConfig onBack={() => setView('settings_menu')} />
       )}
 
       {view === 'update' && (

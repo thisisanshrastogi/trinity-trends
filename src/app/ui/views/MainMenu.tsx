@@ -16,7 +16,7 @@ export const MainMenu: React.FC<MenuProps> = ({ onSelect, version }) => {
 
   const items = [
     { label: pc.green('▶ Run New Search Pipeline'), value: 'new' },
-    { label: pc.cyan('⚙ Edit Configuration'), value: 'config' },
+    { label: pc.cyan('⚙ Settings (Config & Env)'), value: 'settings_menu' },
     { label: pc.yellow('◷ View Past Sessions'), value: 'past' },
     { label: pc.magenta('☊ Transcript Tool (Download & Transcribe)'), value: 'transcript' },
     { label: pc.blue('⬆ Check for Updates'), value: 'update' },

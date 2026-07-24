@@ -18,7 +18,11 @@ from utils.config import AppConfig, load_config, require_instagram_credentials
 from utils.logging_setup import setup_logging
 from utils.paths import DEFAULT_OUTPUT
 
-load_dotenv()
+root_env = Path(__file__).parent.parent / ".env"
+if root_env.exists():
+    load_dotenv(dotenv_path=root_env)
+else:
+    load_dotenv()
 logger = logging.getLogger("instagram_agent")
 
 APP_NAME = "instagram_scraper_app"
@@ -76,8 +80,8 @@ async def run_agent(config: AppConfig, search_type: str = "hashtag") -> int:
     except RuntimeError as e:
         logger.error("%s", e)
         return 1
-    if not os.getenv("GOOGLE_API_KEY"):
-        logger.error("GOOGLE_API_KEY required for --agent mode")
+    if not os.getenv("GOOGLE_API_KEY") and not os.getenv("GEMINI_API_KEY"):
+        logger.error("GOOGLE_API_KEY or GEMINI_API_KEY required for --agent mode")
         return 1
 
     from google.adk.runners import Runner

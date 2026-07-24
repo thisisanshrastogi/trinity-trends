@@ -24,7 +24,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     redditSort: ['relevance', 'hot', 'top', 'new', 'comments'],
     redditTime: ['hour', 'day', 'week', 'month', 'year', 'all'],
     youtubeUploadDate: ['Any time', 'Today', 'This week', 'This month', 'This year'],
-    youtubeType: ['Any', 'Video', 'Channel', 'Playlist', 'Movie']
+    youtubeType: ['Any', 'Video', 'Channel', 'Playlist', 'Movie'],
+    instagramSearchType: ['keyword', 'hashtag']
   };
 
   useInput((input, key) => {
@@ -76,7 +77,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 onChange={setEditValue} 
                 onSubmit={() => {
                   let parsed: any = editValue;
-                  if (['topK', 'maxDocsPerCluster', 'redditLimit', 'youtubeLimit', 'hackerNewsLimit', 'hackerNewsMinPoints'].includes(String(editing))) {
+                  if (['topK', 'maxDocsPerCluster', 'redditLimit', 'youtubeLimit', 'hackerNewsLimit', 'hackerNewsMinPoints', 'instagramLimit'].includes(String(editing))) {
                     parsed = parseInt(editValue, 10);
                     if (isNaN(parsed)) {
                       parsed = config[editing];
@@ -113,6 +114,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     { value: 'youtubeType', label: `YouTube: Type Filter ${pc.gray(`(Current: ${config.youtubeType})`)}` },
     { value: 'hackerNewsLimit', label: `HackerNews: Fetch Limit ${pc.gray(`(Current: ${config.hackerNewsLimit})`)}` },
     { value: 'hackerNewsMinPoints', label: `HackerNews: Min Points ${pc.gray(`(Current: ${config.hackerNewsMinPoints})`)}` },
+    { value: 'instagramLimit', label: `Instagram: Fetch Limit ${pc.gray(`(Current: ${config.instagramLimit})`)}` },
+    { value: 'instagramSearchType', label: `Instagram: Search Type ${pc.gray(`(Current: ${config.instagramSearchType})`)}` },
     { value: 'save', label: pc.green('✔ Save Changes & Exit') },
     { value: 'reset', label: pc.cyan('↺ Reset to Defaults') },
     { value: 'cancel', label: pc.red('✖ Cancel Without Saving') }

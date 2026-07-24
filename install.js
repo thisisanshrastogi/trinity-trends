@@ -47,21 +47,32 @@ async function main() {
   }
 
   let envContent = fs.readFileSync(envPath, 'utf-8');
-  if (!envContent.includes('GEMINI_API_KEY=') || envContent.includes('GEMINI_API_KEY=your_gemini_api_key_here') || envContent.match(/GEMINI_API_KEY=\s*$/)) {
-    console.log("\n[!] Gemini API Key is missing or default.");
-    const key = await ask("Please enter your GEMINI_API_KEY (or press Enter to skip): ");
-    if (key.trim()) {
-      if (envContent.includes('GEMINI_API_KEY=')) {
-        envContent = envContent.replace(/GEMINI_API_KEY=.*/, `GEMINI_API_KEY=${key.trim()}`);
-      } else {
-        envContent += `\nGEMINI_API_KEY=${key.trim()}\n`;
+  
+  const envVars = [
+    { key: 'GEMINI_API_KEY', msg: 'Please enter your GEMINI_API_KEY (for analysis/transcription)' },
+    { key: 'GROQ_API_KEY', msg: 'Please enter your GROQ_API_KEY (for Whisper audio transcription)' },
+    { key: 'INSTAGRAM_USERNAME', msg: 'Please enter your INSTAGRAM_USERNAME (for scraping)' },
+    { key: 'INSTAGRAM_PASSWORD', msg: 'Please enter your INSTAGRAM_PASSWORD (for scraping)' }
+  ];
+
+  for (const { key, msg } of envVars) {
+    if (!envContent.includes(`${key}=`) || envContent.match(new RegExp(`${key}=\\s*(your_.*)?$`))) {
+      console.log(`\n[!] ${key} is missing or default.`);
+      const val = await ask(`${msg} (or press Enter to skip): `);
+      if (val.trim()) {
+        if (envContent.includes(`${key}=`)) {
+          envContent = envContent.replace(new RegExp(`${key}=.*`), `${key}=${val.trim()}`);
+        } else {
+          envContent += `\n${key}=${val.trim()}\n`;
+        }
+        console.log(`[OK] ${key} saved.`);
       }
-      fs.writeFileSync(envPath, envContent);
-      console.log("[OK] GEMINI_API_KEY saved to .env");
+    } else {
+      console.log(`[OK] ${key} is already configured.`);
     }
-  } else {
-    console.log("[OK] GEMINI_API_KEY is already configured.");
   }
+  
+  fs.writeFileSync(envPath, envContent);
   rl.close();
 
   // 2. Python Setup

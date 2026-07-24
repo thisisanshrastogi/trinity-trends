@@ -12,6 +12,8 @@ export interface TrinityConfig {
   youtubeType: string;
   hackerNewsLimit: number;
   hackerNewsMinPoints: number;
+  instagramLimit: number;
+  instagramSearchType: 'keyword' | 'hashtag';
   maxDocsPerCluster: number;
 }
 
@@ -25,6 +27,8 @@ export const DEFAULT_CONFIG: TrinityConfig = {
   youtubeType: 'Video',
   hackerNewsLimit: 10,
   hackerNewsMinPoints: 2,
+  instagramLimit: 10,
+  instagramSearchType: 'keyword',
   maxDocsPerCluster: 10
 };
 
@@ -66,7 +70,7 @@ export class ConfigManager {
     while (!fs.existsSync(path.join(installRoot, 'package.json')) && installRoot !== '/') {
       installRoot = path.dirname(installRoot);
     }
-    
+
     const pyConfigPath = path.join(installRoot, 'pipeline', 'config.py');
     if (fs.existsSync(pyConfigPath)) {
       let content = fs.readFileSync(pyConfigPath, 'utf8');

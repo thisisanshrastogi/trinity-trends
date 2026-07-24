@@ -60,6 +60,7 @@ export const RunPipeline: React.FC<RunPipelineProps> = ({ user, onBack, onComple
         reddit: { limit: config.redditLimit, sort: config.redditSort as any, time: config.redditTime as any },
         youtube: { limit: config.youtubeLimit, region: 'US', filters: [] },
         hackerNews: { limit: config.hackerNewsLimit, minPoints: config.hackerNewsMinPoints, after: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        instagram: { limit: config.instagramLimit, searchType: config.instagramSearchType as any },
         onLog: (msg) => setLogs(prev => [...prev.slice(-4), msg]), // Keep last 5 logs for pretty animation
       });
       

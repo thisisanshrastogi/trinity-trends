@@ -474,12 +474,56 @@ export const PastSessions: React.FC<PastSessionsProps> = ({ user, onBack, initia
 
   if (view === 'tokens') {
     const usage = repo.getTokenUsageBySession(selectedSession!.id);
+    
+    const modelTotals = usage.reduce((acc, u) => {
+      if (!acc[u.model]) acc[u.model] = { prompt: 0, output: 0, total: 0 };
+      acc[u.model].prompt += u.promptTokens || 0;
+      acc[u.model].output += u.outputTokens || 0;
+      acc[u.model].total += u.totalTokens || 0;
+      return acc;
+    }, {} as Record<string, {prompt: number, output: number, total: number}>);
+
+    const stageTotals = usage.reduce((acc, u) => {
+      if (!acc[u.stage]) acc[u.stage] = { prompt: 0, output: 0, total: 0 };
+      acc[u.stage].prompt += u.promptTokens || 0;
+      acc[u.stage].output += u.outputTokens || 0;
+      acc[u.stage].total += u.totalTokens || 0;
+      return acc;
+    }, {} as Record<string, {prompt: number, output: number, total: number}>);
+
+    const overallTotal = usage.reduce((sum, u) => sum + (u.totalTokens || 0), 0);
+
     return (
       <Box flexDirection="column" padding={1}>
-        <Text color="cyan" bold>--- Token Usage ---</Text>
+        <Text color="cyan" bold>--- Token Usage Analysis ---</Text>
+        
+        <Box flexDirection="column" marginTop={1}>
+          <Box width="100%" flexDirection="column" borderStyle="single" borderColor="magenta" padding={1} marginBottom={1}>
+            <Text color="magenta" bold>Model-wise Totals</Text>
+            {Object.keys(modelTotals).length > 0 ? Object.entries(modelTotals).map(([model, totals]: [string, any]) => (
+              <Text key={model}>
+                <Text color="whiteBright">{model}:</Text> <Text color="green">{totals.prompt}</Text> prompt / <Text color="yellow">{totals.output}</Text> output / <Text color="cyan">{totals.total}</Text> total
+              </Text>
+            )) : <Text color="gray">No data</Text>}
+          </Box>
+          <Box width="100%" flexDirection="column" borderStyle="single" borderColor="blue" padding={1}>
+            <Text color="blue" bold>Stage-wise Totals</Text>
+            {Object.keys(stageTotals).length > 0 ? Object.entries(stageTotals).map(([stage, totals]: [string, any]) => (
+              <Text key={stage}>
+                <Text color="whiteBright">{stage}:</Text> <Text color="green">{totals.prompt}</Text> prompt / <Text color="yellow">{totals.output}</Text> output / <Text color="cyan">{totals.total}</Text> total
+              </Text>
+            )) : <Text color="gray">No data</Text>}
+          </Box>
+        </Box>
+
         <Box marginY={1} flexDirection="column">
+          <Text bold>Overall Total Tokens: <Text color="whiteBright">{overallTotal}</Text></Text>
+        </Box>
+
+        <Text color="gray" bold>Detailed Timeline</Text>
+        <Box flexDirection="column" marginTop={1}>
           {usage.length > 0 ? usage.map((u: any, i: number) => (
-             <Text key={i}>[{new Date(u.createdAt).toLocaleString()}] <Text color="magenta">{u.model}</Text> ({u.stage}): <Text color="green">{u.promptTokens}</Text> prompt / <Text color="yellow">{u.completionTokens}</Text> completion</Text>
+             <Text key={i}>[{new Date(u.createdAt).toLocaleTimeString()}] <Text color="magenta">{u.model}</Text> ({u.stage}): <Text color="green">{u.promptTokens}</Text> prompt / <Text color="yellow">{u.outputTokens}</Text> output = <Text color="cyan">{u.totalTokens}</Text> total</Text>
           )) : (
             <Text color="yellow">No token usage found for this session.</Text>
           )}

@@ -36,7 +36,7 @@ export class ConfigManager {
   private configPath: string;
 
   constructor() {
-    const configDir = path.join(os.homedir(), '.trinity_trends');
+    const configDir = process.env.TRINITY_DATA_DIR || path.join(os.homedir(), '.trinity_trends');
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
     }

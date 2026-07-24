@@ -5,7 +5,9 @@ import { SqliteClientLike } from '../storage.interfaces.js';
 
 import os from 'os';
 
-const DEFAULT_DB_PATH = path.resolve(os.homedir(), '.trinity_trends', 'data', 'trinity_trends.db');
+const DEFAULT_DB_PATH = process.env.TRINITY_DATA_DIR 
+  ? path.resolve(process.env.TRINITY_DATA_DIR, 'data', 'trinity_trends.db')
+  : path.resolve(os.homedir(), '.trinity_trends', 'data', 'trinity_trends.db');
 
 /**
  * Thin wrapper around better-sqlite3 that handles connection lifecycle

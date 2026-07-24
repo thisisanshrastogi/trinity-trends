@@ -451,7 +451,9 @@ export class OrchestratorClient {
     };
 
     const os = await import('os');
-    const outputDir = path.join(os.homedir(), '.trinity_trends', 'output', sessionId);
+    const outputDir = process.env.TRINITY_DATA_DIR 
+      ? path.join(process.env.TRINITY_DATA_DIR, 'output', sessionId)
+      : path.join(os.homedir(), '.trinity_trends', 'output', sessionId);
     fs.mkdirSync(outputDir, { recursive: true });
 
     const inputPath = path.join(outputDir, 'collection-scored.json');

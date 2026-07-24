@@ -136,7 +136,12 @@ async function main() {
   }
 
   // 4. CLI Symlink
-  console.log("\n[4/4] Setting up CLI tool ('trinity' command)...");
+  const skipLink = process.argv.includes('--no-link');
+  if (skipLink) {
+    console.log("\n[4/4] Skipping global CLI symlink (--no-link provided)...");
+  } else {
+    console.log("\n[4/4] Setting up CLI tool ('trinity' command)...");
+  }
   try {
     // If not built, build it first just in case
     if (!fs.existsSync(path.join('dist', 'src', 'app', 'cli.js'))) {
@@ -149,9 +154,11 @@ async function main() {
       }
     }
 
-    // `npm link` handles global symlinking cross-platform (creating .cmd files for Windows)
-    run("npm link");
-    console.log("[OK] Added 'trinity' command globally!");
+    if (!skipLink) {
+      // `npm link` handles global symlinking cross-platform (creating .cmd files for Windows)
+      run("npm link");
+      console.log("[OK] Added 'trinity' command globally!");
+    }
   } catch (err) {
     console.log("[WARNING] Could not run 'npm link' automatically (might need Administrator/sudo).");
     console.log("To make the command available globally, run: npm link");
@@ -159,7 +166,9 @@ async function main() {
 
   console.log("\n===========================================================");
   console.log("[DONE] Installation complete!");
-  console.log("You can now start the app from anywhere by typing: trinity");
+  if (!skipLink) {
+    console.log("You can now start the app from anywhere by typing: trinity");
+  }
   console.log("===========================================================\n");
 }
 

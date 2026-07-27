@@ -21,6 +21,7 @@ Trinity Trends is a hybrid TypeScript + Python CLI application. The TypeScript l
 - [Building a Release](#building-a-release)
 - [Uninstalling](#uninstalling)
 - [Documentation](#documentation)
+- [Credits](#credits)
 - [License](#license)
 
 ---
@@ -315,6 +316,12 @@ Detailed architecture and design documentation lives in the `docs/` directory:
 | [`docs/design-decisions.md`](docs/design-decisions.md) | Key design decisions and their rationale |
 | [`docs/DB.md`](docs/DB.md) | Database schema reference |
 | [`docs/ERD.md`](docs/ERD.md) | Entity-relationship diagrams |
+
+---
+
+## Credits
+
+- **`ig_scraper`**: The independent Python Instagram scraper was originally developed by or inspired by work from [pushkarydv](https://github.com/pushkarydv).
 
 ---
 

@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import pc from 'picocolors';
 
 const execFileAsync = promisify(execFile);
@@ -22,7 +23,9 @@ export const PreflightCheck: React.FC<PreflightCheckProps> = ({ onSuccess, onCan
   useEffect(() => {
     const runChecks = async () => {
       const foundErrors: string[] = [];
-      let root = process.cwd();
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      let root = __dirname;
       while (!fs.existsSync(path.join(root, "package.json")) && root !== "/") {
         root = path.dirname(root);
       }

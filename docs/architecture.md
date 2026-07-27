@@ -38,7 +38,8 @@ The two phases communicate through a JSON file on disk (`collection-scored.json`
 │  │ Collectors   │            │                                      │
 │  │ (Reddit,     │            │                                      │
 │  │  YouTube,    │            │                                      │
-│  │  HackerNews) │            │                                      │
+│  │  HackerNews, │            │                                      │
+│  │  Instagram)  │            │                                      │
 │  └──────────────┘            │                                      │
 │                              │                                      │
 │  ┌──────────────┐            │                                      │
@@ -68,7 +69,7 @@ The `OrchestratorClient` is the central conductor. It coordinates the four TypeS
 
 1. **Intent Analysis** — Calls `LLMIntentAnalyzer` to classify the query (topic, shopping, news, learning, brand) and extract core topic phrases.
 2. **Expansion & Scoring** — Runs three expanders in parallel, deduplicates results, and scores candidates using Gemini embeddings.
-3. **Data Collection** — For each top-K candidate, collects data from Reddit, YouTube, and Hacker News in parallel.
+3. **Data Collection** — For each top-K candidate, collects data from Reddit, YouTube, Hacker News, and Instagram (via Python subprocess) in parallel.
 4. **Python Handoff** — Serializes collected data to JSON, spawns the Python pipeline as a child process, and ingests the results back into SQLite.
 
 Key design: The orchestrator dynamically resolves the installation root directory using `import.meta.url`, enabling the `trinity` command to work from any working directory on the user's system.
@@ -106,7 +107,7 @@ The `ExpansionScorer` embeds both the original query and all expansion candidate
 
 Batching is set to 50 concurrent embedding requests to avoid connection timeouts.
 
-### Collectors (`src/collectors/`)
+### Collectors (`src/collectors/` and `ig_scraper/`)
 
 All collectors are **API-key-free** — they work by scraping public interfaces:
 
@@ -115,6 +116,7 @@ All collectors are **API-key-free** — they work by scraping public interfaces:
 | **Reddit** | HTML scraping of `old.reddit.com/search` | Cursor-based (`after` parameter) |
 | **YouTube** | Initial HTML page + InnerTube continuation API | Continuation tokens |
 | **Hacker News** | Algolia Search API (`hn.algolia.com`) | Page-based |
+| **Instagram** | Python subprocess using headless Playwright + whisper.cpp | Auto-scroll & Whisper transcription |
 
 Each collector follows the same pattern: `Client` (HTTP requests) → `Parser` (HTML/JSON → typed objects) → `Collector` (pagination + orchestration).
 
@@ -204,7 +206,8 @@ User Input ("AI coding assistants")
     ├─> Collection ──> ~50-150 posts/videos per candidate
     │   ├─ Reddit: paginated HTML scraping
     │   ├─ YouTube: InnerTube API + player metadata enrichment
-    │   └─ Hacker News: Algolia search API
+    │   ├─ Hacker News: Algolia search API
+    │   └─ Instagram: Headless Playwright & Audio Transcription
     │
     ├─> collection-scored.json (written to disk)
     │

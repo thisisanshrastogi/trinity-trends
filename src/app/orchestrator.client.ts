@@ -172,6 +172,7 @@ export class OrchestratorClient {
       if (completedStages.has('python_analysis')) startIndex = Math.max(startIndex, 4);
     }
 
+    let currentRunId: string | null = null;
     try {
       let intentResult: any = null;
 
@@ -179,6 +180,7 @@ export class OrchestratorClient {
       if (startIndex <= 0 && 0 <= endIndex) {
         log(`Stage 1/4: Intent Analysis`);
         const intentRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'intent_analysis' });
+        currentRunId = intentRun.id;
 
         intentResult = await this.intentAnalyzer.analyze(query);
 
@@ -201,7 +203,7 @@ export class OrchestratorClient {
           resultSummary: JSON.stringify({ intent: intentResult.intent, category: intentResult.category, topics: intentResult.topics.length }),
           completedAt: Date.now()
         });
-
+        currentRunId = null;
       }
 
       // 4. Expansion & Scoring
@@ -209,6 +211,7 @@ export class OrchestratorClient {
       if (startIndex <= 1 && 1 <= endIndex) {
         log(`Stage 2/4: Topic Expansion & Scoring`);
         const expansionRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'topic_expansion' });
+        currentRunId = expansionRun.id;
 
         if (!intentResult) {
           const dbIntent = this.repo.getIntentResult(session.id);
@@ -234,12 +237,14 @@ export class OrchestratorClient {
           resultSummary: JSON.stringify({ candidateCount: scoredExpansion.candidates.length }),
           completedAt: Date.now()
         });
+        currentRunId = null;
       }
 
       // 5. Collection
       if (startIndex <= 2 && 2 <= endIndex) {
         log(`Stage 3/4: Data Collection (Top ${topK} candidates)`);
         const collectionRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'collection' });
+        currentRunId = collectionRun.id;
 
         if (!scoredExpansion) {
           const dbExpansion = this.repo.getExpansionResult(session.id);
@@ -386,6 +391,7 @@ export class OrchestratorClient {
             resultSummary: JSON.stringify({ collectedTopics: candidatesToCollect.length }),
             completedAt: Date.now()
           });
+          currentRunId = null;
         }
       }
 
@@ -393,6 +399,7 @@ export class OrchestratorClient {
       if (startIndex <= 3 && 3 <= endIndex) {
         log(`Stage 4/4: Python Pipeline Analysis`);
         const pythonRun = this.repo.createPipelineRun({ sessionId: session.id, stage: 'python_analysis' });
+        currentRunId = pythonRun.id;
 
         await this.exportAndRunPython(session.id, query, options?.pythonStartStage, options?.pythonEndStage, options);
 
@@ -401,6 +408,7 @@ export class OrchestratorClient {
           resultSummary: JSON.stringify({ pythonStagesRun: true }),
           completedAt: Date.now()
         });
+        currentRunId = null;
       }
 
       if (endIndex === stages.length - 1) {
@@ -410,6 +418,17 @@ export class OrchestratorClient {
       return session.id;
 
     } catch (err: any) {
+      if (currentRunId) {
+        try {
+          this.repo.updatePipelineRun(currentRunId, {
+            status: 'failed',
+            error: err.message,
+            completedAt: Date.now()
+          });
+        } catch (dbErr: any) {
+          if (options?.onLog) options.onLog(`Failed to record pipeline failure: ${dbErr.message}`);
+        }
+      }
       if (options?.onLog) options.onLog(`Pipeline failed: ${err.message}`);
       throw err; // rethrow or handle differently
     }

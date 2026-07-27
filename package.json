@@ -13,7 +13,8 @@
     "start": "node dist/src/app/cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "package": "node scripts/build.js",
-    "release": "node scripts/release.js"
+    "release": "node scripts/release.js",
+    "test": "vitest"
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
@@ -43,6 +44,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.17",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.10"
   }
 }

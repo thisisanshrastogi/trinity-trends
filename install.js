@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import * as os from 'os';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -33,8 +34,26 @@ async function main() {
   console.log("   Installing Trinity Trends (Cross-Platform)");
   console.log("===========================================================\n");
 
+  const isWin = process.platform === "win32";
+  const installDir = isWin 
+    ? path.join(os.homedir(), 'AppData', 'Local', 'trinity-trends')
+    : path.join(os.homedir(), '.local', 'share', 'trinity-trends');
+
+  if (process.cwd() !== installDir) {
+    console.log(`[0/4] Relocating installation to ${installDir}...`);
+    fs.mkdirSync(installDir, { recursive: true });
+    
+    fs.cpSync(process.cwd(), installDir, { 
+      recursive: true, 
+      filter: (src) => !src.match(/node_modules|\.git|\.venv|data|output|dist_release/) 
+    });
+    
+    process.chdir(installDir);
+    console.log(`[OK] Files relocated. Continuing installation in ${installDir}...`);
+  }
+
   // 1. Environment Variable Setup
-  console.log("[1/4] Configuring Environment...");
+  console.log("\n[1/4] Configuring Environment...");
   const envPath = path.join(process.cwd(), '.env');
   const examplePath = path.join(process.cwd(), '.env.example');
 

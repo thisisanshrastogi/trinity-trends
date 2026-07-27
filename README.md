@@ -16,7 +16,7 @@
 
 # Trinity Trends
 
-**An intelligent, multi-platform trend analysis engine that scrapes real-time data from Reddit, YouTube, and Hacker News, then runs it through a 10-stage AI pipeline to surface actionable content opportunities.**
+**An intelligent, multi-platform trend analysis engine that scrapes real-time data from Reddit, YouTube, Hacker News, and Instagram, then runs it through a 10-stage AI pipeline to surface actionable content opportunities.**
 
 Trinity Trends is a hybrid TypeScript + Python CLI application. The TypeScript layer handles data collection, intent analysis, query expansion, and semantic scoring. The Python layer runs a deep analysis pipeline — normalization, relevance filtering, clustering, signal extraction, and LLM-powered trend synthesis — to produce structured, publication-ready "Trend Catchers."
 
@@ -40,7 +40,7 @@ Trinity Trends is a hybrid TypeScript + Python CLI application. The TypeScript l
 
 ## Features
 
-- **Multi-Platform Collection** — Scrapes Reddit (via old.reddit.com HTML parsing), YouTube (via InnerTube API), and Hacker News (via Algolia API) without requiring any API keys for those platforms.
+- **Multi-Platform Collection** — Scrapes Reddit (HTML), YouTube (InnerTube API), Hacker News (Algolia API), and Instagram (Playwright headless scraping + Audio Transcription via whisper.cpp & Groq).
 - **LLM-Powered Intent Analysis** — Uses Gemini to classify user queries and extract core topic phrases before expansion.
 - **Smart Query Expansion** — Combines three independent expansion strategies (Google Autocomplete, LLM subtopic generation, Google Trends) and deduplicates results.
 - **Semantic Scoring** — Ranks expanded candidates using Gemini embeddings and cosine similarity against the original query.
@@ -69,7 +69,7 @@ Trinity Trends is a hybrid TypeScript + Python CLI application. The TypeScript l
                               |
               +---------------v---------------+
               |       Data Collection          |
-              |  Reddit | YouTube | HackerNews |
+              | Reddit | YouTube | HackerNews | Instagram |
               +---------------+---------------+
                               |
                     +---------v---------+
@@ -93,6 +93,7 @@ Trinity Trends is a hybrid TypeScript + Python CLI application. The TypeScript l
 | **Node.js** | >= 18 | TypeScript runtime, CLI, collectors |
 | **Python** | >= 3.10 | Analysis pipeline, ML models |
 | **Gemini API Key** | — | Intent analysis, embeddings, signal extraction, synthesis |
+| **Groq API Key** | — | Audio transcription for Instagram (fallback/primary) |
 
 ---
 
@@ -131,6 +132,8 @@ cd trinity-trends-v0.1.2
 ```bash
 node install.js
 ```
+
+The installer will automatically relocate the application to a permanent system directory (`~/.local/share/trinity-trends` on Linux/macOS or `AppData\Local\trinity-trends` on Windows) and set everything up there. Once the installation is complete, you can safely delete the downloaded folder/archive.
 
 ---
 
@@ -178,6 +181,7 @@ $ trinity
   ? Enter your search topic: AI coding assistants
   ? Reddit post limit: 10
   ? YouTube video limit: 10
+  ? Instagram limit: 10
   ...
 
   [Orchestrator] Stage 1/4: Intent Analysis
@@ -210,6 +214,7 @@ trinity-trends/
 │   │   ├── reddit/             # old.reddit.com HTML scraper
 │   │   ├── youtube/            # InnerTube API client
 │   │   ├── hackerNews/         # Algolia HN search API
+│   │   ├── instagram/          # Instagram Python scraper bridge
 │   │   └── googleTrends/       # Google Trends API wrapper
 │   ├── intent/                 # LLM intent classification
 │   ├── expansion/              # Query expansion strategies
@@ -221,6 +226,10 @@ trinity-trends/
 │   │   ├── llm/                # Gemini caller, factory, tracing
 │   │   └── http/               # HTTP client utilities
 │   └── types/                  # Shared TypeScript types
+│
+├── ig_scraper/                 # Independent Python Instagram scraper
+│   ├── main.py                 # Playwright orchestration & transcription
+│   └── ...                     # Scraper logic and dependencies
 │
 ├── pipeline/                   # Python analysis pipeline
 │   ├── stages/                 # 10 processing stages (s0–s9)
@@ -296,17 +305,15 @@ The resulting archive contains everything an end user needs — they just extrac
 
 ## Uninstalling
 
-To cleanly remove Trinity Trends:
+To cleanly remove Trinity Trends, run the uninstall script from the downloaded folder (or from the permanent install directory if you kept it):
 
 ```bash
-# From inside the project directory
 node uninstall.js
-
-# Then delete the folder
-rm -rf trinity-trends-v*/
 ```
 
-This removes the global `trinity` command. Your local `data/` and `output/` folders (containing SQLite databases and analysis results) are left untouched so you don't lose your work.
+This removes the global `trinity` command and automatically deletes the permanent installation folder (`~/.local/share/trinity-trends` or `AppData\Local\trinity-trends`). 
+
+Your local user `data/` and `output/` folders (containing SQLite databases and analysis results) are stored separately and are left untouched so you don't lose your work.
 
 ---
 

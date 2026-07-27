@@ -9,6 +9,7 @@ This table tracks which data platforms are implemented in Trinity Trends.
 | **Reddit** | Excellent (niche communities) | Upvotes, comments | HTML scraping (`old.reddit.com`) | Done |
 | **YouTube** | Excellent (broad reach) | Views, likes, comments | InnerTube API | Done |
 | **Hacker News** | Excellent (tech) | Points, comments | Algolia Search API | Done |
+| **Instagram** | Excellent (visual/social trends) | Likes, comments | Headless Playwright (Python subprocess) + Audio Transcription (whisper.cpp/Groq) | Done |
 | **Google Trends** | Excellent (search demand) | Interest over time, related queries | `google-trends-api` wrapper | Done (collector only, disabled in orchestrator) |
 
 ## Planned / Not Yet Implemented
@@ -17,7 +18,6 @@ This table tracks which data platforms are implemented in Trinity Trends.
 |----------|--------------|-------------------|------------|-------|
 | TikTok | Excellent | Likes, comments, shares, saves, views | Very Hard | Requires authentication, anti-bot measures |
 | X (Twitter) | Excellent | Likes, reposts, replies | Hard | API access requires paid tier |
-| Instagram | Good | Likes, comments | Hard | Requires authentication |
 | Product Hunt | Excellent (products) | Upvotes, discussions | Easy | Good candidate for next implementation |
 | Pinterest | Good | Saves | Medium | Niche use case |
 | Medium | Good | Claps, responses | Medium | |

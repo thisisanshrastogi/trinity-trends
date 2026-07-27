@@ -4,6 +4,7 @@ import SelectInput from 'ink-select-input';
 import TextInput from 'ink-text-input';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import pc from 'picocolors';
 
 interface EnvConfigProps {
@@ -19,7 +20,9 @@ export const EnvConfig: React.FC<EnvConfigProps> = ({ onBack }) => {
 
   useEffect(() => {
     // Find the installation root (where package.json lives)
-    let root = process.cwd();
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    let root = __dirname;
     while (!fs.existsSync(path.join(root, "package.json")) && root !== "/") {
       root = path.dirname(root);
     }

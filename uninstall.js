@@ -1,5 +1,7 @@
 import { execSync } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 console.log("======================================");
 console.log("Uninstalling Trinity Trends");
@@ -13,5 +15,19 @@ try {
   console.log("[WARNING] Could not automatically remove the global command. You may need to run 'npm rm -g trinity-trends' manually.");
 }
 
-console.log("\n[DONE] Uninstallation complete!");
-console.log("You may now safely delete this entire folder.\n");
+const isWin = process.platform === "win32";
+const installDir = isWin 
+  ? path.join(os.homedir(), 'AppData', 'Local', 'trinity-trends')
+  : path.join(os.homedir(), '.local', 'share', 'trinity-trends');
+
+if (fs.existsSync(installDir)) {
+  console.log(`\n[*] Removing application files from ${installDir}...`);
+  try {
+    fs.rmSync(installDir, { recursive: true, force: true });
+    console.log("[OK] Application files removed.");
+  } catch (e) {
+    console.log(`[WARNING] Could not completely remove files from ${installDir}.`);
+  }
+}
+
+console.log("\n[DONE] Uninstallation complete!\n");

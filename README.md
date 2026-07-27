@@ -1,20 +1,7 @@
-```
-████████╗██████╗ ██╗███╗   ██╗██╗████████╗██╗   ██╗
-╚══██╔══╝██╔══██╗██║████╗  ██║██║╚══██╔══╝╚██╗ ██╔╝
-   ██║   ██████╔╝██║██╔██╗ ██║██║   ██║    ╚████╔╝ 
-   ██║   ██╔══██╗██║██║╚██╗██║██║   ██║     ╚██╔╝  
-   ██║   ██║  ██║██║██║ ╚████║██║   ██║      ██║   
-   ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝      ╚═╝   
- ████████╗██████╗ ███████╗███╗   ██╗██████╗ ███████╗
- ╚══██╔══╝██╔══██╗██╔════╝████╗  ██║██╔══██╗██╔════╝
-    ██║   ██████╔╝█████╗  ██╔██╗ ██║██║  ██║███████╗
-    ██║   ██╔══██╗██╔══╝  ██║╚██╗██║██║  ██║╚════██║
-    ██║   ██║  ██║███████╗██║ ╚████║██████╔╝███████║
-    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝ ╚══════╝
-                                    - A Pretty Trends Analyzer -
-```
 
 # Trinity Trends
+
+![Trinity Trends TUI](./screenshot.png)
 
 **An intelligent, multi-platform trend analysis engine that scrapes real-time data from Reddit, YouTube, Hacker News, and Instagram, then runs it through a 10-stage AI pipeline to surface actionable content opportunities.**
 

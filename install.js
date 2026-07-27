@@ -10,7 +10,11 @@ const rl = readline.createInterface({
 });
 
 const ask = (query) => new Promise(resolve => rl.question(query, resolve));
-const run = (cmd, opts = {}) => execSync(cmd, { stdio: 'inherit', ...opts });
+const isQuiet = process.argv.includes('--quiet');
+const isNonInteractive = isQuiet || process.argv.includes('--non-interactive');
+const stdioMode = isQuiet ? 'ignore' : 'inherit';
+const run = (cmd, opts = {}) => execSync(cmd, { stdio: stdioMode, ...opts });
+const log = (msg) => { if (!isQuiet) console.log(msg); };
 
 const banner = `
 ████████╗██████╗ ██╗███╗   ██╗██╗████████╗██╗   ██╗
@@ -29,10 +33,12 @@ const banner = `
 `;
 
 async function main() {
-  console.log(banner);
-  console.log("===========================================================");
-  console.log("   Installing Trinity Trends (Cross-Platform)");
-  console.log("===========================================================\n");
+  if (!isNonInteractive) {
+    console.log(banner);
+    console.log("===========================================================");
+    console.log("   Installing Trinity Trends (Cross-Platform)");
+    console.log("===========================================================\n");
+  }
 
   const isWin = process.platform === "win32";
   const installDir = isWin
@@ -40,7 +46,7 @@ async function main() {
     : path.join(os.homedir(), '.local', 'share', 'trinity-trends');
 
   if (process.cwd() !== installDir) {
-    console.log(`[0/4] Relocating installation to ${installDir}...`);
+    log(`[0/4] Relocating installation to ${installDir}...`);
     fs.mkdirSync(installDir, { recursive: true });
 
     fs.cpSync(process.cwd(), installDir, {
@@ -49,11 +55,11 @@ async function main() {
     });
 
     process.chdir(installDir);
-    console.log(`[OK] Files relocated. Continuing installation in ${installDir}...`);
+    log(`[OK] Files relocated. Continuing installation in ${installDir}...`);
   }
 
   // 1. Environment Variable Setup
-  console.log("\n[1/4] Configuring Environment...");
+  log("\n[1/4] Configuring Environment...");
   const envPath = path.join(process.cwd(), '.env');
   const examplePath = path.join(process.cwd(), '.env.example');
 
@@ -76,18 +82,20 @@ async function main() {
 
   for (const { key, msg } of envVars) {
     if (!envContent.includes(`${key}=`) || envContent.match(new RegExp(`^${key}=\\s*(your_.*)?$`, 'm'))) {
-      console.log(`\n[!] ${key} is missing or default.`);
-      const val = await ask(`${msg} (or press Enter to skip): `);
-      if (val.trim()) {
-        if (envContent.includes(`${key}=`)) {
-          envContent = envContent.replace(new RegExp(`${key}=.*`), `${key}=${val.trim()}`);
-        } else {
-          envContent += `\n${key}=${val.trim()}\n`;
+      if (!isNonInteractive) {
+        console.log(`\n[!] ${key} is missing or default.`);
+        const val = await ask(`${msg} (or press Enter to skip): `);
+        if (val.trim()) {
+          if (envContent.includes(`${key}=`)) {
+            envContent = envContent.replace(new RegExp(`${key}=.*`), `${key}=${val.trim()}`);
+          } else {
+            envContent += `\n${key}=${val.trim()}\n`;
+          }
+          console.log(`[OK] ${key} saved.`);
         }
-        console.log(`[OK] ${key} saved.`);
       }
     } else {
-      console.log(`[OK] ${key} is already configured.`);
+      log(`[OK] ${key} is already configured.`);
     }
   }
 
@@ -95,7 +103,7 @@ async function main() {
   rl.close();
 
   // 2. Python Setup
-  console.log("\n[2/4] Setting up Python Virtual Environment...");
+  log("\n[2/4] Setting up Python Virtual Environment...");
   const pythonCmd = isWin ? "python" : "python3";
   const pipelineDir = path.join(process.cwd(), 'pipeline');
   const venvDir = path.join(pipelineDir, ".venv");
@@ -112,7 +120,7 @@ async function main() {
     } else {
       run(`"${pipCmd}" install -r requirements.txt`, { cwd: pipelineDir });
     }
-    console.log("[OK] Pipeline Python environment ready.");
+    log("[OK] Pipeline Python environment ready.");
 
     const igScraperDir = path.join(process.cwd(), 'ig_scraper');
     if (fs.existsSync(igScraperDir)) {
@@ -131,11 +139,11 @@ async function main() {
       } else {
         // Install playwright browsers if playwright is there
         try {
-          console.log("[INFO] Installing Playwright Chromium browser...");
+          log("[INFO] Installing Playwright Chromium browser...");
           run(`"${igPythonVenvCmd}" -m playwright install chromium`, { cwd: igScraperDir });
         } catch (e) { }
       }
-      console.log("[OK] ig_scraper Python environment ready.");
+      log("[OK] ig_scraper Python environment ready.");
     }
 
   } catch (err) {
@@ -144,26 +152,26 @@ async function main() {
   }
 
   // 3. Node Dependencies
-  console.log("\n[3/4] Installing Node dependencies...");
+  log("\n[3/4] Installing Node dependencies...");
   try {
     run("npm install --omit=dev");
-    console.log("[OK] Node dependencies ready.");
+    log("[OK] Node dependencies ready.");
   } catch (err) {
-    console.error("[ERROR] Failed to install Node dependencies.");
+    if (!isQuiet) console.error("[ERROR] Failed to install Node dependencies.");
     process.exit(1);
   }
 
   // 4. CLI Symlink
   const skipLink = process.argv.includes('--no-link');
   if (skipLink) {
-    console.log("\n[4/4] Skipping global CLI symlink (--no-link provided)...");
+    log("\n[4/4] Skipping global CLI symlink (--no-link provided)...");
   } else {
-    console.log("\n[4/4] Setting up CLI tool ('trinity' command)...");
+    log("\n[4/4] Setting up CLI tool ('trinity' command)...");
   }
   try {
     // If not built, build it first just in case
     if (!fs.existsSync(path.join('dist', 'src', 'app', 'cli.js'))) {
-      console.log("[*] Building TypeScript app...");
+      log("[*] Building TypeScript app...");
       run("npm install");
       run("npm run build");
 
@@ -175,19 +183,21 @@ async function main() {
     if (!skipLink) {
       // `npm link` handles global symlinking cross-platform (creating .cmd files for Windows)
       run("npm link");
-      console.log("[OK] Added 'trinity' command globally!");
+      log("[OK] Added 'trinity' command globally!");
     }
   } catch (err) {
-    console.log("[WARNING] Could not run 'npm link' automatically (might need Administrator/sudo).");
-    console.log("To make the command available globally, run: npm link");
+    log("[WARNING] Could not run 'npm link' automatically (might need Administrator/sudo).");
+    log("To make the command available globally, run: npm link");
   }
 
-  console.log("\n===========================================================");
-  console.log("[DONE] Installation complete!");
-  if (!skipLink) {
-    console.log("You can now start the app from anywhere by typing: trinity");
+  if (!isNonInteractive) {
+    console.log("\n===========================================================");
+    console.log("[DONE] Installation complete!");
+    if (!skipLink) {
+      console.log("You can now start the app from anywhere by typing: trinity");
+    }
+    console.log("===========================================================\n");
   }
-  console.log("===========================================================\n");
 }
 
 main().catch(console.error);

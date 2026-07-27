@@ -26,7 +26,7 @@ const App = () => {
   const [view, setView] = useState<'login' | 'register' | 'menu' | 'new' | 'config' | 'env' | 'settings_menu' | 'past' | 'transcript' | 'update'>('login');
   const [preflightOk, setPreflightOk] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  
+
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [user, setUser] = useState<User | null>(null);
@@ -61,18 +61,18 @@ const App = () => {
       <Box flexDirection="column" padding={1} borderStyle="round" borderColor="red">
         <Text color="red" bold>Are you sure you want to exit Trinity Trends?</Text>
         <Box marginTop={1}>
-          <SelectInput 
+          <SelectInput
             items={[
               { label: 'No, return to application', value: 'no' },
               { label: 'Yes, exit immediately', value: 'yes' }
-            ]} 
+            ]}
             onSelect={(item) => {
               if (item.value === 'yes') {
                 process.exit(0);
               } else {
                 setShowExitConfirm(false);
               }
-            }} 
+            }}
           />
         </Box>
       </Box>
@@ -82,7 +82,7 @@ const App = () => {
   return (
     <Box flexDirection="column" padding={1}>
       <Banner />
-      
+
       {view === 'login' && (
         <Box flexDirection="column">
           <Text color="cyan">Enter your email to login:</Text>
@@ -107,30 +107,30 @@ const App = () => {
       {view === 'menu' && (
         <Box flexDirection="column">
           <Text color="green">Welcome, {user?.name}!</Text>
-          <MainMenu 
-            version={getCurrentVersion()} 
+          <MainMenu
+            version={getCurrentVersion()}
             onSelect={(val) => {
               if (val === 'exit') exit();
               else setView(val as any);
-            }} 
+            }}
           />
         </Box>
       )}
 
       {view === 'new' && user && !preflightOk && (
-        <PreflightCheck 
-          onSuccess={() => setPreflightOk(true)} 
-          onCancel={() => setView('menu')} 
+        <PreflightCheck
+          onSuccess={() => setPreflightOk(true)}
+          onCancel={() => setView('menu')}
         />
       )}
 
       {view === 'new' && user && preflightOk && (
-        <RunPipeline 
-          user={user} 
+        <RunPipeline
+          user={user}
           onBack={() => {
             setPreflightOk(false);
             setView('menu');
-          }} 
+          }}
           onComplete={(sessionId) => {
             setPreflightOk(false);
             setPastSessionId(sessionId);
@@ -144,12 +144,12 @@ const App = () => {
       )}
 
       {view === 'past' && user && (
-        <PastSessions 
-          user={user} 
+        <PastSessions
+          user={user}
           onBack={() => {
             setPastSessionId(undefined);
             setView('menu');
-          }} 
+          }}
           initialSessionId={pastSessionId}
         />
       )}
@@ -176,9 +176,14 @@ const App = () => {
   );
 };
 
+import { UpgradeManager } from '../upgrade/upgrade.manager.js';
+
+// Automatically recover from a failed/interrupted update before doing anything else
+UpgradeManager.recoverIfInterrupted();
+
 // Override console methods to prevent Ink disruption by standard logs
-console.log = () => {};
-console.error = () => {}; 
-console.warn = () => {};
+console.log = () => { };
+console.error = () => { };
+console.warn = () => { };
 
 render(<App />, { exitOnCtrlC: false });

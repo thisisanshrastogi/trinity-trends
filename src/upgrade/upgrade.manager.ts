@@ -117,7 +117,7 @@ export class UpgradeManager {
    *
    * Returns true on success. On failure, automatically rolls back.
    */
-  async applyUpdate(archivePath: string, newVersion: string): Promise<boolean> {
+  async applyUpdate(archivePath: string, newVersion: string, onProgress?: (msg: string) => void): Promise<boolean> {
     // Write lock file to indicate update is in progress
     fs.writeFileSync(this.lockFile, 'updating');
 
@@ -178,7 +178,8 @@ export class UpgradeManager {
       }
 
       // Step 4: Run post-install hooks (reinstall node_modules for production)
-      this.runPostInstallHooks();
+      if (onProgress) onProgress('Running post-install hooks...');
+      await this.runPostInstallHooks(onProgress);
 
       // Step 5: Verify
       const updatedVersion = getCurrentVersion();
@@ -381,111 +382,32 @@ export class UpgradeManager {
     }
   }
 
-  private runPostInstallHooks(): void {
-    // 1. Reinstall Node deps
-    try {
-      execSync('npm install --omit=dev', {
+  private runPostInstallHooks(onProgress?: (msg: string) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const { spawn } = require('child_process');
+      const proc = spawn('node', ['install.js', '--no-link', '--non-interactive'], {
         cwd: this.projectRoot,
-        stdio: 'pipe',
-        timeout: 120000,
+        stdio: ['ignore', 'pipe', 'pipe']
       });
-    } catch (err: any) {
-      console.warn(`[WARN] Node deps reinstall failed: ${err.message}`);
-    }
 
-    // 2. Reinstall Python deps
-    try {
-      const pipelineDir = path.join(this.projectRoot, 'pipeline');
-      const venvDir = path.join(pipelineDir, '.venv');
-
-      if (fs.existsSync(pipelineDir)) {
-        if (!fs.existsSync(venvDir)) {
-          console.log('[INFO] Creating Python virtual environment...');
-          execSync('python3 -m venv .venv', {
-            cwd: pipelineDir,
-            stdio: 'pipe',
-            timeout: 60000,
-          });
+      const handleData = (data: Buffer) => {
+        if (!onProgress) return;
+        const lines = data.toString().split('\n');
+        for (const line of lines) {
+          if (line.trim()) onProgress(line.trim());
         }
+      };
 
-        const isWin = process.platform === 'win32';
-        const pipCmd = isWin
-          ? path.join(venvDir, 'Scripts', 'pip')
-          : path.join(venvDir, 'bin', 'pip');
+      proc.stdout.on('data', handleData);
+      proc.stderr.on('data', handleData);
 
-        if (fs.existsSync(path.join(pipelineDir, 'pyproject.toml'))) {
-          console.log('[INFO] Installing Python dependencies from pyproject.toml...');
-          execSync(`"${pipCmd}" install -e .`, {
-            cwd: pipelineDir,
-            stdio: 'pipe',
-            timeout: 120000,
-          });
-        } else if (fs.existsSync(path.join(pipelineDir, 'requirements.txt'))) {
-          console.log('[INFO] Installing Python dependencies from requirements.txt...');
-          execSync(`"${pipCmd}" install -r requirements.txt`, {
-            cwd: pipelineDir,
-            stdio: 'pipe',
-            timeout: 120000,
-          });
-        }
-      }
-
-      // 2b. Reinstall ig_scraper Python deps
-      const igScraperDir = path.join(this.projectRoot, 'ig_scraper');
-      const igVenvDir = path.join(igScraperDir, '.venv');
-
-      if (fs.existsSync(igScraperDir)) {
-        if (!fs.existsSync(igVenvDir)) {
-          console.log('[INFO] Creating ig_scraper Python virtual environment...');
-          execSync('python3 -m venv .venv', {
-            cwd: igScraperDir,
-            stdio: 'pipe',
-            timeout: 60000,
-          });
-        }
-
-        const isWin = process.platform === 'win32';
-        const igPipCmd = isWin
-          ? path.join(igVenvDir, 'Scripts', 'pip')
-          : path.join(igVenvDir, 'bin', 'pip');
-
-        if (fs.existsSync(path.join(igScraperDir, 'requirements.txt'))) {
-          console.log('[INFO] Installing ig_scraper Python dependencies...');
-          execSync(`"${igPipCmd}" install -r requirements.txt`, {
-            cwd: igScraperDir,
-            stdio: 'pipe',
-            timeout: 120000,
-          });
-          
-          const igPythonCmd = isWin
-            ? path.join(igVenvDir, 'Scripts', 'python')
-            : path.join(igVenvDir, 'bin', 'python');
-
-          try {
-             console.log('[INFO] Installing Playwright Chromium browser...');
-             execSync(`"${igPythonCmd}" -m playwright install chromium`, {
-                cwd: igScraperDir,
-                stdio: 'pipe',
-                timeout: 120000,
-             });
-          } catch(e) {}
-        }
-      }
-
-    } catch (err: any) {
-      console.warn(`[WARN] Python deps reinstall failed: ${err.message}`);
-    }
-
-    // 3. Re-link CLI
-    try {
-      execSync('npm link', {
-        cwd: this.projectRoot,
-        stdio: 'pipe',
-        timeout: 30000,
+      proc.on('close', (code: number) => {
+        if (code === 0) resolve();
+        else reject(new Error(`Post-install hooks failed with exit code ${code}`));
       });
-    } catch (err: any) {
-      console.warn(`[WARN] NPM link failed: ${err.message}`);
-    }
+
+      proc.on('error', (err: any) => reject(new Error(`Failed to start post-install hooks: ${err.message}`)));
+    });
   }
 
   private copyRecursive(src: string, dest: string): void {

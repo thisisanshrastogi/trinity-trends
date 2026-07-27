@@ -63,8 +63,11 @@ export const UpdateTool: React.FC<UpdateToolProps> = ({ onBack }) => {
         archivePath = await manager.downloadFullRelease(updateResult.releaseInfo);
       }
       
-      setStatus('Applying update and running post-install hooks (this may take a minute)...');
-      await manager.applyUpdate(archivePath, updateResult.latestVersion);
+      setStatus('Extracting files...');
+      await manager.applyUpdate(archivePath, updateResult.latestVersion, (msg) => {
+        // Strip out some common prefixes if you want, or just show them directly
+        setStatus(`Post-install: ${msg}`);
+      });
       
       setStatus(`Successfully updated to v${updateResult.latestVersion}! Please restart the application.`);
       setStep('done');

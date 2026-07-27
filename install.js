@@ -35,19 +35,19 @@ async function main() {
   console.log("===========================================================\n");
 
   const isWin = process.platform === "win32";
-  const installDir = isWin 
+  const installDir = isWin
     ? path.join(os.homedir(), 'AppData', 'Local', 'trinity-trends')
     : path.join(os.homedir(), '.local', 'share', 'trinity-trends');
 
   if (process.cwd() !== installDir) {
     console.log(`[0/4] Relocating installation to ${installDir}...`);
     fs.mkdirSync(installDir, { recursive: true });
-    
-    fs.cpSync(process.cwd(), installDir, { 
-      recursive: true, 
-      filter: (src) => !src.match(/node_modules|\.git|\.venv|data|output|dist_release/) 
+
+    fs.cpSync(process.cwd(), installDir, {
+      recursive: true,
+      filter: (src) => !src.match(/node_modules|\.git|\.venv|data|output|dist_release/)
     });
-    
+
     process.chdir(installDir);
     console.log(`[OK] Files relocated. Continuing installation in ${installDir}...`);
   }
@@ -66,7 +66,7 @@ async function main() {
   }
 
   let envContent = fs.readFileSync(envPath, 'utf-8');
-  
+
   const envVars = [
     { key: 'GEMINI_API_KEY', msg: 'Please enter your GEMINI_API_KEY (for analysis/transcription)' },
     { key: 'GROQ_API_KEY', msg: 'Please enter your GROQ_API_KEY (for Whisper audio transcription)' },
@@ -90,13 +90,12 @@ async function main() {
       console.log(`[OK] ${key} is already configured.`);
     }
   }
-  
+
   fs.writeFileSync(envPath, envContent);
   rl.close();
 
   // 2. Python Setup
   console.log("\n[2/4] Setting up Python Virtual Environment...");
-  const isWin = process.platform === "win32";
   const pythonCmd = isWin ? "python" : "python3";
   const pipelineDir = path.join(process.cwd(), 'pipeline');
   const venvDir = path.join(pipelineDir, ".venv");

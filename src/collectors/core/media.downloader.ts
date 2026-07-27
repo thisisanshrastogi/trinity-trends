@@ -1,15 +1,24 @@
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
+import ffmpegPath from 'ffmpeg-static';
 
 export class MediaDownloader {
+  private pythonExec: string;
+
+  constructor(pythonExec: string = 'python3') {
+    this.pythonExec = pythonExec;
+  }
+
   /**
    * Downloads media from a given URL and extracts it as a 16kHz WAV file.
    */
   public async downloadAudio(url: string, outputPath: string): Promise<any> {
     return new Promise((resolve, reject) => {
       const args = [
+        '-m', 'yt_dlp',
         '-x', 
         '--audio-format', 'wav',
+        '--ffmpeg-location', ffmpegPath as unknown as string,
         '--postprocessor-args', 'ffmpeg:-ar 16000 -ac 1',
         '--dump-json',
         '--no-simulate',
@@ -19,11 +28,16 @@ export class MediaDownloader {
         url
       ];
 
-      const ytProcess = spawn('yt-dlp', args);
+      const ytProcess = spawn(this.pythonExec, args);
       let stdoutData = '';
+      let stderrData = '';
 
       ytProcess.stdout.on('data', (data) => {
         stdoutData += data.toString();
+      });
+      
+      ytProcess.stderr.on('data', (data) => {
+        stderrData += data.toString();
       });
 
       ytProcess.on('close', (code) => {
@@ -50,7 +64,7 @@ export class MediaDownloader {
             resolve({});
           }
         } else {
-          reject(new Error(`yt-dlp failed with exit code ${code}`));
+          reject(new Error(`yt-dlp failed with exit code ${code}. Details: ${stderrData.trim()}`));
         }
       });
 

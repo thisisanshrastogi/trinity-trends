@@ -37,8 +37,9 @@ export class AudioTranscriber {
 
     this.scraperDir = join(root, 'ig_scraper');
     this.transcribeScript = join(this.scraperDir, 'transcribe.py');
-    const venvPython = join(this.scraperDir, '.venv', 'bin', 'python3');
-    this.pythonExec = existsSync(venvPython) ? venvPython : 'python3';
+    const venvPythonUnix = join(this.scraperDir, '.venv', 'bin', 'python3');
+    const venvPythonWin = join(this.scraperDir, '.venv', 'Scripts', 'python.exe');
+    this.pythonExec = existsSync(venvPythonWin) ? venvPythonWin : (existsSync(venvPythonUnix) ? venvPythonUnix : 'python3');
 
     // Bypass Python faster_whisper batch transcription and use legacy JS/whisper.cpp flow
     this.usePython = false;
@@ -168,7 +169,7 @@ export class AudioTranscriber {
     const { spawn } = await import('child_process');
     const { MediaDownloader } = await import('./media.downloader.js');
 
-    const downloader = new MediaDownloader();
+    const downloader = new MediaDownloader(this.pythonExec);
     const tmpAudioPath = join(tmpdir(), `media_audio_${crypto.randomUUID()}.wav`);
 
     try {
@@ -214,7 +215,7 @@ export class AudioTranscriber {
     const { readFileSync, existsSync, unlinkSync } = await import('fs');
     const { Blob } = await import('node:buffer');
 
-    const downloader = new MediaDownloader();
+    const downloader = new MediaDownloader(this.pythonExec);
     const results = new Map<string, { transcript: string; metadata?: any }>();
     const downloadedFiles: { url: string; path: string; metadata: any }[] = [];
 
